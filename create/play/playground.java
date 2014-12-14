@@ -37,34 +37,33 @@ public class playground extends PApplet{
     class MyRobot extends Robot {
 
         private final float STANDING = 0.5f;
-        //Roboter speichert Situationen und spielt diese ab
-        private final HashMap<Integer, float[]> actions = new HashMap<>();
-        //Zweiter Parameter ist ein Array der den Stati der Sensoren teilt und die steeringAngles sowie den speed,
-        // ob Rückwärts oder Vorwärts
 
         private float mAngle;
 
         private final Sensor mSensor_front;
-        private final Sensor mSensor_front_left;
-        private final Sensor mSensor_front_right;
-        private final Sensor mSensor_back_left;
-        private final Sensor mSensor_back_right;
+        private final Sensor mSensor_left;
+        private final Sensor mSensor_right;
+        private final Sensor mSensor_back;
 
         private Vec2 old_position;
+        private float angleSpeed = 0.05f;
 
         MyRobot(Environment pEnvironment) {
             super(pEnvironment);
             mSensor_front = addSensor(0, 40.0f);
-            mSensor_front_left = addSensor(- PI/2 , 30.0f);
-            mSensor_front_right = addSensor(PI/2 , 30.0f);
-            mSensor_back_left = addSensor(- 3*PI/4, 20.0f);
-            mSensor_back_right = addSensor(3*PI/4, 20.0f);
+            mSensor_left = addSensor(-PI/2, 40.0f);
+            mSensor_right = addSensor(PI/2, 40.0f);
+            mSensor_back = addSensor(PI, 40.0f);
         }
 
         public void update(float pDeltaTime) {
 
-            mAngle += pDeltaTime;
-            mSensor_front.angle(sin(mAngle * 8) * 0.5f);
+            mAngle += pDeltaTime + angleSpeed;
+            mSensor_front.angle(mAngle);
+            mSensor_back.angle(mAngle + PI);
+
+            mSensor_left.angle(-(mAngle - PI/2));
+            mSensor_right.angle(-(mAngle + PI/2));
 
             Vec2 position = this.position();
 
@@ -104,7 +103,7 @@ public class playground extends PApplet{
             if (!mSensor_front.triggered()) {
                 rect(1.5f, -2, 2, 2);
             }
-            if (!mSensor_front_left.triggered()) {
+            if (!mSensor_left.triggered()) {
                 ellipse(-1.5f, -2, 2, 2);
             }
         }
