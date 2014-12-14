@@ -1,14 +1,14 @@
 package SimplestRobotExample;
+
+import org.jbox2d.common.Vec2;
 import processing.core.PApplet;
-import shiffman.box2d.*;
+import processing.core.PGraphics;
 import de.hfkbremen.robots.challenge.*;
 
 /**
- * SimplestRobotExample
- *
- * Created by felixkroll on 11.12.14.
+ * Created by niklasbarning on 14.12.14.
  */
-public class example1 extends PApplet {
+public class SimplestRobotExample extends PApplet {
 
     Environment mEnvironment;
     MyRobot mRobot;
@@ -32,8 +32,8 @@ public class example1 extends PApplet {
             super(pEnvironment);
         }
 
-        public void update() {
-        /* steer robot and controll its motor */
+        public void update(float pDeltaTime) {
+    /* steer robot and controll its motor */
             if (keyPressed) {
                 switch (key) {
                     case 'a':
@@ -52,8 +52,8 @@ public class example1 extends PApplet {
             }
         }
     }
-
     public static void main(String[] args) {
-        PApplet.main(new String[]{example1.class.getName()});
+        PApplet.main(new String[]{SimplestRobotExample.class.getName()});
     }
+
 }

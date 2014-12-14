@@ -1,15 +1,14 @@
 package SteerRobotExample;
-import processing.core.PGraphics;
-import shiffman.box2d.*;
-import de.hfkbremen.robots.challenge.*;
+
+import org.jbox2d.common.Vec2;
 import processing.core.PApplet;
+import processing.core.PGraphics;
+import de.hfkbremen.robots.challenge.*;
 
 /**
- * SteerRobotExample
- *
- * Created by felixkroll on 11.12.14.
+ * Created by niklasbarning on 14.12.14.
  */
-public class example2 extends PApplet{
+public class SteerRobotExample extends PApplet{
 
     Environment mEnvironment;
     MyRobot mRobot;
@@ -34,6 +33,7 @@ public class example2 extends PApplet{
         final Sensor mSensorA;
         final Sensor mSensorB;
         final Sensor mSensorC;
+        float mAngle;
 
         MyRobot(Environment pEnvironment) {
             super(pEnvironment);
@@ -42,8 +42,11 @@ public class example2 extends PApplet{
             mSensorC = addSensor(0, 20.0f);
         }
 
-        public void update() {
-        /* steer robot and controll its motor */
+        public void update(float pDeltaTime) {
+            mAngle += pDeltaTime;
+            mSensorC.angle(sin(mAngle * 2) * 0.5f);
+
+    /* steer robot and controll its motor */
             if (keyPressed) {
                 switch (key) {
                     case 'a':
@@ -56,7 +59,7 @@ public class example2 extends PApplet{
                         speed(maxForwardSpeed);
                         break;
                     case 's':
-                        speed(-maxForwardSpeed);
+                        speed(0);
                         steer(0);
                         break;
                     case 'x':
@@ -75,7 +78,7 @@ public class example2 extends PApplet{
         }
 
         public void draw(PGraphics g) {
-        /* draw in robot s local coordinate space */
+    /* draw in robot s local coordinate space */
             rectMode(CENTER);
             noStroke();
             fill(0, 127, 255);
@@ -87,10 +90,8 @@ public class example2 extends PApplet{
             }
         }
     }
-
     public static void main(String[] args) {
-        PApplet.main(new String[]{example2.class.getName()});
+        PApplet.main(new String[]{SteerRobotExample.class.getName()});
     }
+
 }
-
-

@@ -38,6 +38,15 @@ public class Environment implements ContactListener {
 
     private final World mWorld;
 
+    private float mDeltaTime = 1.0f / 60f;
+
+    /**
+     * create an instance of the an environment.
+     *
+     * @param pParent instance of the parent processing sketch
+     * @param pEnvMap ID of the desired environment. currently allowed IDs are:
+     * MAP_EMPTY, MAP_SIMPLE, MAP_ROUND_1, MAP_BAELLEBAD
+     */
     public Environment(PApplet pParent, int pEnvMap) {
         mWorld = new World(new Vec2(0, 0));
         mWorld.setWarmStarting(true);
@@ -52,10 +61,41 @@ public class Environment implements ContactListener {
         mRobots = new ArrayList<Robot>();
     }
 
+    /**
+     * create an instance of the an environment.
+     *
+     * @param pParent instance of the parent processing sketch
+     * @param pEnvMap instance of the environment map
+     */
+    public Environment(PApplet pParent, EnvironmentMap pEnvMap) {
+        /* @TODO is there a way to combine the 2 constructors? */
+        mWorld = new World(new Vec2(0, 0));
+        mWorld.setWarmStarting(true);
+        mWorld.setContinuousPhysics(true);
+
+        BodyDef bodyDef = new BodyDef();
+        Body groundBody = mWorld.createBody(bodyDef);
+
+        mWorld.setContactListener(this);
+
+        mMap = pEnvMap;
+        mRobots = new ArrayList<Robot>();
+    }
+
+    /**
+     * add a robot to the environment
+     *
+     * @param pRobot
+     */
     public void add(Robot pRobot) {
         mRobots.add(pRobot);
     }
 
+    /**
+     * DO NOT USE. returns an instance of the box2d world.
+     *
+     * @return instance of box2d world
+     */
     public World world() {
         return mWorld;
     }
@@ -85,9 +125,15 @@ public class Environment implements ContactListener {
         return mNewMap;
     }
 
-    public void update() {
-        float timeStep = 1.0f / 60f;
-        mWorld.step(timeStep, 10, 8);
+    /**
+     * DO NOT USE. call this method every frame to advane the physical
+     * simulation. this method also updates each robot.
+     *
+     * @param pTimeStep
+     */
+    public void update(final float pTimeStep) {
+        mDeltaTime = pTimeStep;
+        mWorld.step(pTimeStep, 10, 8);
         mWorld.clearForces();
 
         /* handle robots */
@@ -96,20 +142,57 @@ public class Environment implements ContactListener {
         }
     }
 
+    /**
+     * call this method every frame to advane the physical simulation. this
+     * method also updates each robot.
+     */
+    public void update() {
+        update(delta_time());
+    }
+
+    /**
+     * simple version of the beginDraw/endDraw methods. use this if no custom
+     * shapes need to be drawn.
+     *
+     * @param g instance of PGraphics to draw to
+     */
     public void draw(PGraphics g) {
         beginDraw(g);
         endDraw(g);
     }
 
+    /**
+     * simple version of the beginDraw/endDraw methods. use this if no custom
+     * shapes need to be drawn.
+     *
+     * @param g instance of PGraphics to draw to
+     * @param pScale
+     * @param pCenter
+     */
     public void draw(PGraphics g, final float pScale, Vec2 pCenter) {
         beginDraw(g, pScale, pCenter);
         endDraw(g);
     }
 
+    /**
+     * this method needs to be called before things are drawn. this method draws
+     * all *physic objects*.
+     *
+     * @param g instance of PGraphics to draw to
+     */
     public void beginDraw(PGraphics g) {
         beginDraw(g, 1, new Vec2());
     }
 
+    /**
+     * this method needs to be called before things are drawn. this method draws
+     * all *physic objects*.
+     *
+     * @param g instance of PGraphics
+     * @param pScale zoom factor of the world. 1 shows the world at 100%
+     * @param pCenter the center of the world. if this is e.g. set to the
+     * positiion of the robot, it will always be drawn in the center.
+     */
     public void beginDraw(PGraphics g, final float pScale, Vec2 pCenter) {
         /* draw all shapes */
         g.strokeWeight(1.0f / pScale);
@@ -152,12 +235,17 @@ public class Environment implements ContactListener {
         }
     }
 
+    /**
+     * this method needs to be called after things were drawn
+     *
+     * @param g instance of PGraphics to draw to
+     */
     public void endDraw(PGraphics g) {
         g.popMatrix();
     }
 
     /* --------------------------------- */
-    public static void drawWorld(PGraphics g, World pWorld) {
+    private static void drawWorld(PGraphics g, World pWorld) {
         Body mBody = pWorld.getBodyList();
         while (mBody != null) {
 
@@ -232,7 +320,7 @@ public class Environment implements ContactListener {
         }
     }
 
-    public static void handleContact(Contact pContact, boolean pBegan) {
+    private static void handleContact(Contact pContact, boolean pBegan) {
         Fixture mFix_A = pContact.getFixtureA();
         Fixture mFix_B = pContact.getFixtureB();
         FixtureUserData mFUD_A = (FixtureUserData) mFix_A.getUserData();
@@ -271,21 +359,48 @@ public class Environment implements ContactListener {
         }
     }
 
+    /**
+     * DO NOT USE. this method is called when entities make contact.
+     *
+     * @param contact
+     */
     public void beginContact(Contact contact) {
         handleContact(contact, true);
     }
 
+    /**
+     * DO NOT USE. this method is called when entities make contact.
+     *
+     * @param contact
+     */
     public void endContact(Contact contact) {
         handleContact(contact, false);
     }
 
+    /**
+     * DO NOT USE. this method is called when entities make contact.
+     *
+     * @param contact
+     * @param oldManifold
+     */
     public void preSolve(Contact contact, Manifold oldManifold) {
     }
 
+    /**
+     * DO NOT USE. this method is called when entities make contact.
+     *
+     * @param contact
+     * @param impulse
+     */
     public void postSolve(Contact contact, ContactImpulse impulse) {
     }
 
-//    public Box2DProcessing box2D() {
-//        return mBox2D;
-//    }
+    /**
+     * returns the duration of the last frame in seconds.
+     *
+     * @return
+     */
+    public float delta_time() {
+        return mDeltaTime;
+    }
 }

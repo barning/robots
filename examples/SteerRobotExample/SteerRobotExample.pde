@@ -1,5 +1,6 @@
 import shiffman.box2d.*;
 import de.hfkbremen.robots.challenge.*;
+import de.hfkbremen.robots.challenge.Robot;
 
 Environment mEnvironment;
 MyRobot mRobot;
@@ -24,6 +25,7 @@ class MyRobot extends Robot {
   final Sensor mSensorA;
   final Sensor mSensorB;
   final Sensor mSensorC;
+  float mAngle;
 
   MyRobot(Environment pEnvironment) {
     super(pEnvironment);
@@ -32,7 +34,10 @@ class MyRobot extends Robot {
     mSensorC = addSensor(0, 20.0f);
   }
 
-  void update() {
+  void update(float pDeltaTime) {
+    mAngle += pDeltaTime;
+    mSensorC.angle(sin(mAngle * 2) * 0.5f);
+
     /* steer robot and controll its motor */
     if (keyPressed) {
       switch (key) {

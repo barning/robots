@@ -47,11 +47,11 @@ public class EnvironmentMapSimple implements EnvironmentMap {
         fixtureDef.shape = polygonShape;
         fixtureDef.isSensor = true;
 
-        polygonShape.setAsBox(9, 7, new Vec2(-10, 15), 20 * DEGTORAD);
+        polygonShape.setAsBox(30, 40, new Vec2(-100, 50), 20 * DEGTORAD);
         Fixture groundAreaFixture = mGround.createFixture(fixtureDef);
         groundAreaFixture.setUserData(new GroundAreaFUD(0.5f, false));
 
-        polygonShape.setAsBox(9, 5, new Vec2(5, 20), -40 * DEGTORAD);
+        polygonShape.setAsBox(30, 40, new Vec2(100, 50), -40 * DEGTORAD);
         groundAreaFixture = mGround.createFixture(fixtureDef);
         groundAreaFixture.setUserData(new GroundAreaFUD(0.2f, false));
     }

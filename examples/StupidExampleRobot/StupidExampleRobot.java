@@ -1,15 +1,15 @@
 package StupidExampleRobot;
 
+import org.jbox2d.common.Vec2;
 import processing.core.PApplet;
-import shiffman.box2d.*;
+import processing.core.PGraphics;
 import de.hfkbremen.robots.challenge.*;
 
 /**
- * StupidExampleRobot
- *
- * Created by felixkroll on 11.12.14.
+ * Created by niklasbarning on 14.12.14.
  */
-public class example3 extends PApplet {
+public class StupidExampleRobot extends PApplet {
+
     Environment mEnvironment;
     MyRobot mRobot;
     float mScale = 5;
@@ -40,8 +40,8 @@ public class example3 extends PApplet {
             backSensor  = addSensor(PI, 50.0f);
         }
 
-        public void update() {
-            /* steer robot and controll its motor */
+        public void update(float pDeltaTime) {
+    /* steer robot and controll its motor */
             if (frontSensor.triggered())
             {
                 obstacleFront = true;
@@ -56,7 +56,8 @@ public class example3 extends PApplet {
         }
     }
 
+
     public static void main(String[] args) {
-        PApplet.main(new String[]{example3.class.getName()});
+        PApplet.main(new String[]{StupidExampleRobot.class.getName()});
     }
 }

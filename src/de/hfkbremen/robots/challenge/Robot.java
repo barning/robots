@@ -39,6 +39,12 @@ import static de.hfkbremen.robots.challenge.Constants.RADTODEG;
 
 public class Robot {
 
+    /* 
+     * FEATURE REQUEST
+     *
+     * change sensor angle, radius 
+     *
+     */
     private final Body mBody;
     private final ArrayList<Tire> mTires = new ArrayList<Tire>();
     private final RevoluteJoint flJoint;
@@ -47,17 +53,25 @@ public class Robot {
     private final boolean DISCRET_STEERING = false;
     private final ArrayList<Sensor> mSensors = new ArrayList<Sensor>();
     private final World mWorld;
-    
+    private final Environment mEnvironment;
+
     final static float SCALE_ROBOT = 2;
     final static int MAX_NUM_OF_SENSORS = 5;
     public final float maxForwardSpeed = 50;
     public final float maxBackwardSpeed = -20;
     public final float maxSensorRange = 50.f;
+    public final float minSensorRange = 5.f;
     public final float maxSteeringAngleDeg = 35.f;
     public final float maxSteeringAngle = maxSteeringAngleDeg * DEGTORAD;
 
+    /**
+     * create an instance of the a robot in a specific environment.
+     *
+     * @param pEnvironment
+     */
     public Robot(Environment pEnvironment) {
 
+        mEnvironment = pEnvironment;
         mWorld = pEnvironment.world();
 
         //create car body
@@ -143,10 +157,21 @@ public class Robot {
         return mSensors;
     }
 
+    /**
+     * DO NOT USE. return an instance of the box2d body
+     *
+     * @return
+     */
     public Body body() {
         return mBody;
     }
 
+    /**
+     * DO NOT USE. checks if the tested body is one of the robot s bodies.
+     *
+     * @param pBody body to test against
+     * @return
+     */
     public boolean isBody(Body pBody) {
         if (pBody == body()) {
             return true;
@@ -159,65 +184,103 @@ public class Robot {
         return false;
     }
 
+    /**
+     * DO NOT CHANGE. current position of the robot in world coordinates.
+     *
+     * @return
+     */
     public Vec2 position() {
         return body().getPosition();
     }
 
+    /**
+     * adds a sensor to the robot and returns the instance of the new sensor.
+     * number and radius of sensors are limitied.
+     *
+     * @param pAngle angle in relation to the forward direction of the robot, in
+     * radians
+     * @param pRadius distance from the robots center
+     * @return
+     */
     public Sensor addSensor(final float pAngle, final float pRadius) {
         float sensorRange = pRadius;
-        if(sensorRange > maxSensorRange)
-        {
-          System.out.println("Sensor range exceeds maximum allowed range. Clipped range to " + maxSensorRange + ".");
-          sensorRange = maxSensorRange;
+        if (sensorRange > maxSensorRange) {
+            System.out.println("Sensor range exceeds maximum allowed range. Clipped range to " + maxSensorRange + ".");
+            sensorRange = maxSensorRange;
+        } else if (sensorRange < minSensorRange) {
+            System.out.println("Sensor range is too small. Clipped range to " + minSensorRange + ".");
+            sensorRange = minSensorRange;
         }
-        RevoluteJointDef jointDef = new RevoluteJointDef();
-        jointDef.bodyA = mBody;
-        jointDef.enableLimit = true;
-        jointDef.lowerAngle = 0;
-        jointDef.upperAngle = 0;
-        jointDef.localAnchorB.setZero();
-
-        Sensor mSensor = new Sensor(mWorld, this);
-        jointDef.bodyB = mSensor.body();
-
-        Vec2 mPosition = new Vec2(PApplet.sin(pAngle), PApplet.cos(pAngle));
-        mPosition.mulLocal(sensorRange);
-//        mPosition.addLocal(new Vec2(0, 5.0f));
-
-        jointDef.localAnchorA.set(mPosition);
-        jointDef.referenceAngle = -pAngle;
-        mWorld.createJoint(jointDef);
+        Sensor mSensor = new Sensor(mWorld, this, pAngle, pRadius);
         mSensors.add(mSensor);
-        if(mSensors.size() > MAX_NUM_OF_SENSORS)
-        {
-          System.out.println("Too many sensors! You tried to add " + mSensors.size() +
-            " sensors, but the limit is " + MAX_NUM_OF_SENSORS + "!");
-          System.exit(0);
+        if (mSensors.size() > MAX_NUM_OF_SENSORS) {
+            System.out.println("Too many sensors! You tried to add " + mSensors.size()
+                               + " sensors, but the limit is " + MAX_NUM_OF_SENSORS + "!");
+            System.exit(0);
         }
 
         return mSensor;
     }
 
-    public void update() {
+    /**
+     * this method is called automatically by the environment each frame.
+     * implement the robots *thinking* in here.
+     *
+     * @param pDelta
+     */
+    public void update(final float pDelta) {
     }
 
+    /**
+     * set the steering angle of the robot. the desired angle is not necessarily
+     * achieved immediately.
+     *
+     * @param pAngle steering angle in relation to the robots forward direction,
+     * in radians
+     */
     public void steer(float pAngle) {
         pAngle = PApplet.min(maxSteeringAngle, PApplet.max(-maxSteeringAngle, pAngle));
         mSteeringAngle = pAngle;
     }
-    
+
+    /**
+     * set the steering angle of the robot. the desired angle is not necessarily
+     * achieved immediately.
+     *
+     * @param pAngleInDegrees steering angle in relation to the robots forward
+     * direction, in degrees
+     */
     public void steerDeg(float pAngleInDegrees) {
         steer(pAngleInDegrees * DEGTORAD);
     }
 
+    /**
+     * returns the current, desired steering angle. the return value of this
+     * method does not necessarily match the actual steering angle. see
+     * 'steer(float pAngle)'
+     *
+     * @return steering angle in relation to the robots forward direction, in
+     * radians
+     */
     public float steer() {
         return mSteeringAngle;
     }
-    
+
+    /**
+     * returns the current, desired steering angle. the return value of this
+     * method does not necessarily match the actual steering angle. see
+     * 'steer(float pAngle)'
+     *
+     * @return steering angle in relation to the robots forward direction, in
+     * degrees
+     */
     public float steerDeg() {
         return mSteeringAngle * RADTODEG;
     }
 
+    /**
+     * DO NOT CALL THIS METHOD.
+     */
     final void _update() {
         for (Tire m_tire : mTires) {
             m_tire.updateFriction();
@@ -234,7 +297,7 @@ public class Robot {
         }
 
         /* call user-defined update */
-        update();
+        update(mEnvironment.delta_time());
     }
 
     private void update_steering() {
@@ -274,16 +337,34 @@ public class Robot {
         frJoint.setLimits(newAngle, newAngle);
     }
 
+    /**
+     * return the speed of the robot. the return value of this method does not
+     * necessarily match the actual speed. see 'speed(float pSpeed)'
+     *
+     * @return
+     */
     public float speed() {
         return mTires.get(0).speed();
     }
 
+    /**
+     * set the speed of the robot. the desired speedis not necessarily achieved
+     * immediately.
+     *
+     * @param pSpeed desired robots speed
+     */
     public void speed(float pSpeed) {
         for (Tire m_tire : mTires) {
             m_tire.speed(pSpeed);
         }
     }
 
+    /**
+     * override this methods to draw into the robots local space.
+     *
+     * @param g use this PGraphics to send drawing commands to like e.g.
+     * 'g.line(0, 5, 10, 20);'
+     */
     public void draw(PGraphics g) {
     }
 
@@ -293,7 +374,7 @@ public class Robot {
 
     private int mMotorState = ROBOT_MOTOR_STOP;
 
-    public void motor(int pDirection) {
+    private void motor(int pDirection) {
         mMotorState = pDirection;
     }
 
@@ -303,7 +384,7 @@ public class Robot {
 
     private int mSteeringState = ROBOT_MOTOR_STOP;
 
-    public void steering(int pDirection) {
+    private void steering(int pDirection) {
         mSteeringState = pDirection;
     }
 }

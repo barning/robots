@@ -1,5 +1,6 @@
 import shiffman.box2d.*;
 import de.hfkbremen.robots.challenge.*;
+import de.hfkbremen.robots.challenge.Robot;
 
 Environment mEnvironment;
 MyRobot mRobot;
@@ -23,7 +24,7 @@ class MyRobot extends Robot {
     super(pEnvironment);
   }
 
-  void update() {
+  void update(float pDeltaTime) {
     /* steer robot and controll its motor */
     if (keyPressed) {
       switch (key) {
