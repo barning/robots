@@ -19,6 +19,7 @@ public class playground extends PApplet{
     Environment mEnvironment;
     MyRobot mRobot;
     float mScale = 5;
+    float mAngle;
 
     public void setup() {
         size(1024, 768);
@@ -53,41 +54,33 @@ public class playground extends PApplet{
         MyRobot(Environment pEnvironment) {
             super(pEnvironment);
             mSensor_front = addSensor(0, 40.0f);
-            mSensor_front_left = addSensor(- PI/4 , 30.0f);
-            mSensor_front_right = addSensor(PI/4 , 30.0f);
+            mSensor_front_left = addSensor(- PI/2 , 30.0f);
+            mSensor_front_right = addSensor(PI/2 , 30.0f);
             mSensor_back_left = addSensor(- 3*PI/4, 20.0f);
             mSensor_back_right = addSensor(3*PI/4, 20.0f);
         }
 
-        public void update() {
+        public void update(float pDeltaTime) {
+
+            mAngle += pDeltaTime;
+            mSensor_front.angle(sin(mAngle * 8) * 0.8f);
+
             Vec2 position = this.position();
 
-            /* steer robot and controll its motor */
+    /* steer robot and controll its motor */
             if (keyPressed) {
                 switch (key) {
                     case 'a':
-                        steer(steer() + 0.05f);
+                        steer(steer() + 0.1f);
                         break;
                     case 'd':
-                        steer(steer() - 0.05f);
+                        steer(steer() - 0.1f);
                         break;
                     case 'w':
-                        speed(maxForwardSpeed);
+                        speed(50);
                         break;
                     case 's':
                         speed(0);
-                        steer(0);
-                        break;
-                    case 'x':
-                        speed(maxBackwardSpeed);
-                        break;
-                    case '-':
-                        mScale -= 0.5f;
-                        mScale = max(1, mScale);
-                        break;
-                    case '+':
-                        mScale += 0.5f;
-                        mScale = min(5, mScale);
                         break;
                 }
             }
