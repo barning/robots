@@ -44,7 +44,7 @@ public class playground extends PApplet{
 
         private float mAngle;
 
-        private float max = maxForwardSpeed
+        private float max = maxForwardSpeed;
 
         private final Sensor mSensor_front;
         private final Sensor mSensor_front_left;
