@@ -44,8 +44,6 @@ public class playground extends PApplet{
 
         private float mAngle;
 
-        private float max = maxForwardSpeed;
-
         private final Sensor mSensor_front;
         private final Sensor mSensor_front_left;
         private final Sensor mSensor_front_right;
@@ -66,11 +64,17 @@ public class playground extends PApplet{
         public void update(float pDeltaTime) {
 
             mAngle += pDeltaTime;
-            mSensor_front.angle(sin(mAngle * 8) * 0.8f);
+            mSensor_front.angle(sin(mAngle * 8) * 0.5f);
 
             Vec2 position = this.position();
 
-    /* steer robot and controll its motor */
+            if (mSensor_front.triggered()) {
+                speed(maxBackwardSpeed);
+            }
+            else {
+                speed(maxForwardSpeed);
+            }
+            /* steer robot and controll its motor */
             if (keyPressed) {
                 switch (key) {
                     case 'a':
@@ -89,6 +93,7 @@ public class playground extends PApplet{
             }
 
             old_position = position;
+
         }
 
         public void draw(PGraphics g) {
