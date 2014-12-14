@@ -19,7 +19,6 @@ public class playground extends PApplet{
     Environment mEnvironment;
     MyRobot mRobot;
     float mScale = 5;
-    float mAngle;
 
     public void setup() {
         size(1024, 768);
@@ -42,6 +41,10 @@ public class playground extends PApplet{
         private final HashMap<Integer, float[]> actions = new HashMap<>();
         //Zweiter Parameter ist ein Array der den Stati der Sensoren teilt und die steeringAngles sowie den speed,
         // ob Rückwärts oder Vorwärts
+
+        private float mAngle;
+
+        private float max = maxForwardSpeed
 
         private final Sensor mSensor_front;
         private final Sensor mSensor_front_left;
