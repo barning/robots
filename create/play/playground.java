@@ -46,7 +46,7 @@ public class playground extends PApplet{
         private final Sensor mSensor_back;
 
         private Vec2 old_position;
-        private float angleSpeed = 5f;
+        private float angleSpeed = 12f;
 
         private int lastTime = 0;
 
@@ -56,10 +56,10 @@ public class playground extends PApplet{
 
         MyRobot(Environment pEnvironment) {
             super(pEnvironment);
-            mSensor_front = addSensor(0, 40.0f);
-            mSensor_left = addSensor(0, 40.0f);
-            mSensor_right = addSensor(0, 40.0f);
-            mSensor_back = addSensor(0, 40.0f);
+            mSensor_front = addSensor(0, 25.0f);
+            mSensor_left = addSensor(0, 25.0f);
+            mSensor_right = addSensor(0, 25.0f);
+            mSensor_back = addSensor(0, 25.0f);
         }
 
         public void update(float pDeltaTime) {
@@ -74,7 +74,7 @@ public class playground extends PApplet{
             Vec2 position = this.position();
 
             speed(maxForwardSpeed/2);
-            if (mSensor_front.triggered()) {
+            if (mSensor_front.triggered() && !steerLeft && !steerRight) {
                 sensorFront = mSensor_front.angle()%(2*PI);
                 println(sensorFront);
                 if (sensorFront <= PI) {
@@ -82,19 +82,20 @@ public class playground extends PApplet{
                 } else {
                     steerLeft = true;
                 }
-
             }
 
             if (steerLeft) {
                 steer(steer() - 0.9f);
-                if( millis() - lastTime >= 3000){
+                if( millis() - lastTime >= 600){
                     steerLeft = false;
+                    lastTime = millis();
                 }
             }
             if (steerRight) {
                 steer(steer() + 0.9f);
-                if( millis() - lastTime >= 3000){
+                if( millis() - lastTime >= 600){
                     steerRight = false;
+                    lastTime = millis();
                 }
             }
 
