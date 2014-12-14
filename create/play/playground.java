@@ -36,7 +36,7 @@ public class playground extends PApplet{
 
     class MyRobot extends Robot {
 
-        private final float STANDING = 0.5f;
+        private final float STANDING = 0.0005f;
 
         private float mAngle;
 
