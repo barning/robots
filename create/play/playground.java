@@ -62,6 +62,7 @@ public class playground extends PApplet{
         public void update() {
             Vec2 position = this.position();
 
+            /* steer robot and controll its motor */
             if (keyPressed) {
                 switch (key) {
                     case 'a':
@@ -74,6 +75,10 @@ public class playground extends PApplet{
                         speed(maxForwardSpeed);
                         break;
                     case 's':
+                        speed(0);
+                        steer(0);
+                        break;
+                    case 'x':
                         speed(maxBackwardSpeed);
                         break;
                     case '-':
