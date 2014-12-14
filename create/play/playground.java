@@ -46,10 +46,13 @@ public class playground extends PApplet{
         private final Sensor mSensor_back;
 
         private Vec2 old_position;
-        private float angleSpeed = 1f;
+        private float angleSpeed = 3f;
+
+        private int lastTime = 0;
 
         private float sensorFront;
-        private float lastSensorFront;
+        private boolean steerLeft = false;
+        private boolean steerRight = false;
 
         MyRobot(Environment pEnvironment) {
             super(pEnvironment);
@@ -71,16 +74,30 @@ public class playground extends PApplet{
             Vec2 position = this.position();
 
             speed(maxForwardSpeed/2);
-            if (mSensor_front.triggered()) {
+            if (mSensor_front.triggered() && !steerRight && !steerLeft) {
                 sensorFront = mSensor_front.angle()%(2*PI);
                 println(sensorFront);
                 if (sensorFront <= PI) {
-                    steer(steer() + 0.9f);
+                    steerRight = true;
                 } else {
-                    steer(steer() - 0.9f);
+                    steerLeft = true;
                 }
+
             } else {
                 steer(0);
+            }
+
+            if (steerLeft) {
+                steer(steer() - 0.9f);
+                if( millis() - lastTime >= 3000){
+                    steerLeft = false;
+                }
+            }
+            if (steerRight) {
+                steer(steer() + 0.9f);
+                if( millis() - lastTime >= 3000){
+                    steerRight = false;
+                }
             }
 
             /* steer robot and controll its motor */
