@@ -1,10 +1,10 @@
 <component name="libraryTable">
   <library name="library">
     <CLASSES>
-      <root url="file://$USER_HOME$/box2d_processing/library" />
+      <root url="file://$PROJECT_DIR$/../../../../../../Processing/libraries/box2d_processing/library" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />
-    <jarDirectory url="file://$USER_HOME$/box2d_processing/library" recursive="false" />
+    <jarDirectory url="file://$PROJECT_DIR$/../../../../../../Processing/libraries/box2d_processing/library" recursive="false" />
   </library>
 </component>
