@@ -38,7 +38,7 @@ public class playground extends PApplet{
         private final Sensor mSensor_left;
         private final Sensor mSensor_right;
         private final Sensor mSensor_back;
-        private final float EPS = 0.0000006f;
+        private final float EPS = 0.1f;
 
         private float angleSpeed = 18f;
         private int lastTime = 0;
@@ -65,12 +65,12 @@ public class playground extends PApplet{
 
             mAngle += pDeltaTime * angleSpeed;
             mSensor_front.angle(mAngle);
-            mSensor_back.angle(mAngle + PI);
+            //mSensor_back.angle(mAngle + PI);
 
-            mSensor_left.angle(-(mAngle - PI/2));
-            mSensor_right.angle(-(mAngle + PI/2));
+            //mSensor_left.angle(-(mAngle - PI/2));
+            //mSensor_right.angle(-(mAngle + PI/2));
 
-            speed(maxForwardSpeed);
+            speed(maxForwardSpeed/2);
 
             if (mSensor_front.triggered()) {
                 sensorFrontAngle = mSensor_front.angle()%(2*PI);
@@ -82,8 +82,7 @@ public class playground extends PApplet{
                     steerLeft = true;
                     lastTime = steeringTime;
 
-                    println("Bewegung: " + oldPosition.sub(this.position()).length());
-                } else if(oldPosition.sub(this.position()).length() == EPS && sensorFrontAngle <= PI/2 || sensorFrontAngle >= 3*PI/2 && !driveBack) {
+                } else if(oldPosition.sub(this.position()).length() <= EPS && (sensorFrontAngle <= PI/2 || sensorFrontAngle >= 3*PI/2) && !driveBack) {
                     driveBack = true;
                     lastTime = backTime;
                 }
@@ -138,7 +137,7 @@ public class playground extends PApplet{
                         speed(50);
                         break;
                     case 's':
-                        speed(0);
+                        speed(maxBackwardSpeed);
                         break;
                 }
             }
