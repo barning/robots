@@ -5,10 +5,6 @@ import processing.core.PApplet;
 import processing.core.PGraphics;
 import de.hfkbremen.robots.challenge.*;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-
 /**
  *
  *
@@ -36,8 +32,6 @@ public class playground extends PApplet{
 
     class MyRobot extends Robot {
 
-        private final float STANDING = 0.0005f;
-
         private float mAngle;
 
         private final Sensor mSensor_front;
@@ -45,21 +39,25 @@ public class playground extends PApplet{
         private final Sensor mSensor_right;
         private final Sensor mSensor_back;
 
-        private Vec2 old_position;
-        private float angleSpeed = 12f;
-
+        private float angleSpeed = 18f;
         private int lastTime = 0;
 
-        private float sensorFront;
+        private float sensorFrontAngle;
+        //Ist weniger eine Zeit, als die Anzahl der Frames, in der bestimmte Aktionen ausgeführt werden soll.
+        private int steeringTime = 60;
+        private int backTime = 100;
+        private Vec2 oldPosition;
+
         private boolean steerLeft = false;
         private boolean steerRight = false;
+        private boolean driveBack = false;
 
         MyRobot(Environment pEnvironment) {
             super(pEnvironment);
-            mSensor_front = addSensor(0, 25.0f);
-            mSensor_left = addSensor(0, 25.0f);
-            mSensor_right = addSensor(0, 25.0f);
-            mSensor_back = addSensor(0, 25.0f);
+            mSensor_front = addSensor(0, 35.0f);
+            mSensor_left = addSensor(0, 35.0f);
+            mSensor_right = addSensor(0, 35.0f);
+            mSensor_back = addSensor(0, 35.0f);
         }
 
         public void update(float pDeltaTime) {
@@ -71,33 +69,52 @@ public class playground extends PApplet{
             mSensor_left.angle(-(mAngle - PI/2));
             mSensor_right.angle(-(mAngle + PI/2));
 
-            Vec2 position = this.position();
+            speed(maxForwardSpeed);
 
-            speed(maxForwardSpeed/2);
-            if (mSensor_front.triggered() && !steerLeft && !steerRight) {
-                sensorFront = mSensor_front.angle()%(2*PI);
-                println(sensorFront);
-                if (sensorFront <= PI) {
+            if (mSensor_front.triggered()) {
+                sensorFrontAngle = mSensor_front.angle()%(2*PI);
+                println(sensorFrontAngle);
+                if (sensorFrontAngle <= PI/2 && !steerLeft) {
                     steerRight = true;
-                } else {
+                    lastTime = steeringTime;
+                } else if(sensorFrontAngle > 3*PI/2 && !steerRight) {
                     steerLeft = true;
+                    lastTime = steeringTime;
+                    //Wie kann man abfragen, ob der Roboter steht…
+                } else if(oldPosition.sub(this.position()).length() == 0 && sensorFrontAngle <= PI/2 || sensorFrontAngle >= 3*PI/2 && !driveBack) {
+                    driveBack = true;
+                    lastTime = backTime;
                 }
             }
 
             if (steerLeft) {
                 steer(steer() - 0.9f);
-                if( millis() - lastTime >= 600){
+                lastTime -= mSensor_front.triggered() ? 1 : 4;
+                if(lastTime <= 0){
                     steerLeft = false;
-                    lastTime = millis();
                 }
             }
             if (steerRight) {
                 steer(steer() + 0.9f);
-                if( millis() - lastTime >= 600){
+                lastTime -= mSensor_front.triggered() ? 1 : 4;
+                if(lastTime <= 0){
                     steerRight = false;
-                    lastTime = millis();
                 }
             }
+            if (driveBack) {
+                speed(maxBackwardSpeed);
+                if (sensorFrontAngle >= PI && sensorFrontAngle <= 3*PI/2) {
+                    steer(steer() + 0.9f);
+                } else {
+                    steer(steer() - 0.9f);
+                }
+                backTime -= 1;
+                if(backTime <= 0){
+                    driveBack = false;
+                }
+            }
+
+            oldPosition = this.position();
 
             if (!steerLeft && !steerRight){
                 steer(0);
@@ -120,9 +137,6 @@ public class playground extends PApplet{
                         break;
                 }
             }
-
-            old_position = position;
-
         }
 
         public void draw(PGraphics g) {
@@ -136,15 +150,6 @@ public class playground extends PApplet{
           /*  if (!mSensor_left.triggered()) {
                 ellipse(-1.5f, -2, 2, 2);
             }*/
-        }
-
-        private boolean isStanding(final Vec2 old_position, final Vec2 current_position) {
-            if (old_position != null && current_position != null) {
-
-                Vec2 velocity = current_position.sub(old_position);
-                return velocity.length() <= STANDING;
-            }
-            return false;
         }
     }
 

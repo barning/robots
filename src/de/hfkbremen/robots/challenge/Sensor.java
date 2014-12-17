@@ -25,7 +25,7 @@ public class Sensor {
     private final Vec2 mObstaclePosition;
     private float mDistanceToObstacleNormalized;
     private float mAngle;
-    private float mRadius;
+    private final float mRadius;
     private final RevoluteJoint mJoint;
     
     private static final boolean TRIGGER_BY_COLLISION = false;
@@ -49,6 +49,8 @@ public class Sensor {
         Fixture mFixture = mBody.createFixture(mShape, 1);
         mFixture.setSensor(true);
         mFixture.setUserData(new RobotSensorFUD());
+        mFixture.setDensity(0.0001f);
+        mBody.resetMassData();
         
         mTriggerState = false;
 
