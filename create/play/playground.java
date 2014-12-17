@@ -5,11 +5,7 @@ import processing.core.PApplet;
 import processing.core.PGraphics;
 import de.hfkbremen.robots.challenge.*;
 
-/**
- *
- *
- * Created by felixkroll on 11.12.14.
- */
+
 public class playground extends PApplet{
 
     Environment mEnvironment;
