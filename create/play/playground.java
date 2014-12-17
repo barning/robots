@@ -38,6 +38,7 @@ public class playground extends PApplet{
         private final Sensor mSensor_left;
         private final Sensor mSensor_right;
         private final Sensor mSensor_back;
+        private final float EPS = 0.0000006f;
 
         private float angleSpeed = 18f;
         private int lastTime = 0;
@@ -80,8 +81,9 @@ public class playground extends PApplet{
                 } else if(sensorFrontAngle > 3*PI/2 && !steerRight) {
                     steerLeft = true;
                     lastTime = steeringTime;
-                    //Wie kann man abfragen, ob der Roboter steht…
-                } else if(oldPosition.sub(this.position()).length() == 0 && sensorFrontAngle <= PI/2 || sensorFrontAngle >= 3*PI/2 && !driveBack) {
+
+                    println("Bewegung: " + oldPosition.sub(this.position()).length());
+                } else if(oldPosition.sub(this.position()).length() == EPS && sensorFrontAngle <= PI/2 || sensorFrontAngle >= 3*PI/2 && !driveBack) {
                     driveBack = true;
                     lastTime = backTime;
                 }
@@ -89,6 +91,7 @@ public class playground extends PApplet{
 
             if (steerLeft) {
                 steer(steer() - 0.9f);
+                speed(maxForwardSpeed/4);
                 lastTime -= mSensor_front.triggered() ? 1 : 4;
                 if(lastTime <= 0){
                     steerLeft = false;
@@ -96,6 +99,7 @@ public class playground extends PApplet{
             }
             if (steerRight) {
                 steer(steer() + 0.9f);
+                speed(maxForwardSpeed/4);
                 lastTime -= mSensor_front.triggered() ? 1 : 4;
                 if(lastTime <= 0){
                     steerRight = false;
@@ -113,6 +117,7 @@ public class playground extends PApplet{
                     driveBack = false;
                 }
             }
+
 
             oldPosition = this.position();
 
