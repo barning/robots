@@ -29,6 +29,7 @@ public class playground extends PApplet{
     /**
      * Unsere Wahrnehmungsfelder als Enum.
      * Jeder Enum-Eintrag steht für ein Feld, in dem potentielle Hindernisse liegen können.
+     *
      */
     public enum DetectionField {
 
@@ -131,15 +132,6 @@ public class playground extends PApplet{
     }
 
     class MyRobot extends Robot {
-
-        private float mAngle;
-
-        private final Sensor mSensor_front;
-        private final Sensor mSensor_left;
-        private final Sensor mSensor_right;
-        private final Sensor mSensor_back;
-        private final Sensor mSensor_tentacle;
-
         /*
         private final float EPS = 0.1f;
         private int lastTime = 0;
@@ -153,28 +145,49 @@ public class playground extends PApplet{
         private boolean driveBack = false;
         */
 
+        private float mAngle;
+
+        private final Sensor mSensor_front;
+        private final Sensor mSensor_left;
+        private final Sensor mSensor_right;
+        private final Sensor mSensor_back;
+        private final Sensor mSensor_tentacle;
+
+        private final DetectionField[] fields = new DetectionField[4];
+
         MyRobot(Environment pEnvironment) {
             super(pEnvironment);
 
-            mSensor_front = addSensor(0, maxSensorRange);
-            mSensor_left = addSensor(- PI/2, maxSensorRange);
-            mSensor_right = addSensor(PI/2, maxSensorRange);
-            mSensor_back = addSensor(PI, maxSensorRange);
-            mSensor_tentacle = addSensor(0, 10.0f);
+            mSensor_front    = addSensor(0      , maxSensorRange);
+            mSensor_left     = addSensor(- PI/2 , maxSensorRange);
+            mSensor_right    = addSensor(PI/2   , maxSensorRange);
+            mSensor_back     = addSensor(PI     , maxSensorRange);
+            mSensor_tentacle = addSensor(0      , 10.0f);
         }
 
         public void update(float pDeltaTime) {
 
             mAngle += pDeltaTime * 2;
-            mSensor_front.angle(mAngle);
-            mSensor_back.angle(mAngle + PI);
-            mSensor_left.angle(mAngle + PI/2);
-            mSensor_right.angle(mAngle + 3*PI/2);
 
-            DetectionField field = DetectionField.selectField(0,0);
+            mSensor_front.angle( mAngle          );
+            mSensor_back.angle ( mAngle + PI     );
+            mSensor_left.angle ( mAngle + PI/2   );
+            mSensor_right.angle( mAngle + 3*PI/2 );
+
+            fields[0] = mSensor_front.triggered() ?
+                    DetectionField.selectField(mSensor_front.angle(), mSensor_front.obstacleDistance()) : null;
+
+            fields[1] = mSensor_back. triggered() ?
+                    DetectionField.selectField(mSensor_back.angle(), mSensor_back.obstacleDistance()): null;
+
+            fields[2] = mSensor_left. triggered() ?
+                    DetectionField.selectField(mSensor_left.angle(), mSensor_left.obstacleDistance()): null;
+
+            fields[3] = mSensor_right.triggered() ?
+                    DetectionField.selectField(mSensor_right.angle(), mSensor_right.obstacleDistance()): null;
 
 
-            if (field != null) {
+            if (false) {
 
             } else {
                 speed(maxForwardSpeed);
