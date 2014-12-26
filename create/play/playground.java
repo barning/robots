@@ -5,6 +5,8 @@ import processing.core.PApplet;
 import processing.core.PGraphics;
 import de.hfkbremen.robots.challenge.*;
 
+import java.util.ArrayList;
+
 
 public class playground extends PApplet{
 
@@ -27,6 +29,8 @@ public class playground extends PApplet{
     }
 
     /**
+     * TODO nur nehmen, wenn es keinen anderen Weg mehr gibt
+     *
      * Unsere Wahrnehmungsfelder als Enum.
      * Jeder Enum-Eintrag steht für ein Feld, in dem potentielle Hindernisse liegen können.
      *
@@ -131,21 +135,227 @@ public class playground extends PApplet{
         }
     }
 
+    /**
+     * Satus des Robots. Der Roboter kann jeweils nur FORWARD oder BACKWARD einnehmen und LEFT_DRIVING oder RIGHT_DRIVING
+     */
+    public enum ROBO_STATUS {
+        FORWARD, BACKWARD, STANDING, LEFT_DRIVING, RIGHT_DRIVING
+    }
+
     class MyRobot extends Robot {
-        /*
-        private final float EPS = 0.1f;
-        private int lastTime = 0;
-        private float sensorFrontAngle;
-        //Ist weniger eine Zeit, als die Anzahl der Frames, in der bestimmte Aktionen ausgeführt werden soll.
-        private int steeringTime = 60;
-        private int backTime = 100;
-        private Vec2 oldPosition;
-        private boolean steerLeft = false;
-        private boolean steerRight = false;
-        private boolean driveBack = false;
-        */
+
+        /**
+         * Repräsentiert den Messpunkt eines Sensors.
+         */
+        class Value {
+
+            /**
+             * Der Punkt in Weltkoordinaten, an dem das Objekt registriert wurde. Statisch!
+             */
+            private final Vec2 value_position;
+
+            /**
+             * Der Winkel relativ zur Roboterspitze.
+             * Wird aktualisiert.
+             */
+            private float degree;
+
+            /**
+             * Der Abstand zum Robotermittlepunkt
+             * Wird aktualisiert.
+             */
+            private float distance;
+
+            /**
+             * Initialisiert einen Messpunkt.
+             *
+             * Wirft eine {@link java.lang.IllegalArgumentException},
+             * wenn {@code value_position} gleich {@code null} ist
+             *
+             * @param value_position Position zum Robotermittlepunkt zum Messzeitpunkt.
+             * @param degree Winkel relativ zur Roboterspitze zum Messzeitpunkt
+             * @param distance Abstand zum Robotermittlepunkt zum Messzeitpunkt
+             */
+            Value(final Vec2 value_position, final float degree, final float distance) {
+                if (value_position == null) {
+                    throw new IllegalArgumentException();
+                }
+                this.value_position = value_position;
+                this.degree = degree;
+                this.distance = distance;
+            }
+
+            /* Getter Methoden */
+            public float getDegree() {
+                return degree;
+            }
+
+            public Vec2 getValue_position() {
+                return value_position;
+            }
+
+            public float getDistance() {
+                return distance;
+            }
+
+            /*Setter Methoden*/
+            public void setDegree(float degree) {
+                this.degree = degree;
+            }
+
+            public void setDistance(float distance) {
+                this.distance = distance;
+            }
+
+        }
+
+        /**
+         * Datenstruktur für ein Hinderniss.
+         * Besteht aus einzelen Messpunkten, die in einer ArrayList gespeichert werden.
+         * Ein neuer Messpunkt, der in der Nähe eines schon in der ArrayList befindlichen Messpunktes ist,
+         * wird an die richtige Position in der ArrayList gestellt.
+         */
+        class Obstacle {
+
+            /**
+             * Maximale Distanz, bei der ein Messpunkt noch hinzugefügt wird. Inklusiv.
+             * TODO ein passender Wert muss noch gefunden werden.
+             */
+            private final float MAX_DISTANCE_TO_NEXT = 0.1f;
+
+            /**
+             * Minimale Distanz, bei der ein Messpunkt nicht mehr hinzugefügt wird. Inklusiv.
+             * TODO ein passender Wert muss noch gefunden werden.
+             */
+            private final float MIN_DISTANCE_TO_NEXT = 0.05f;
+
+            /**
+             * Der Mittelpunkt des Hindernisses in Weltkoordinaten.
+             * Wir immer aktualisiert, wenn sich das Objekt ändert.
+             */
+            private Vec2 position;
+
+            private final ArrayList<Value> values;
+
+            /**
+             * Initialisiert ein Hinderniss.
+             */
+            Obstacle() {
+                values = new ArrayList<>();
+            }
+
+            /**
+             * Fügt ein neuen Messpunkt in die ArrayList ein. Ein neuer Messpunkt wird nur dann in die ArrayList eingefügt,
+             * wenn zu einem bereits enthalten Messpunkt den Abstand MAX_DISTANCE_TO_NEXT und MIN_DISTANCE_TO_NEXT einhält.
+             *
+             * Wenn die ArrayList noch leer ist, wird das Objekt einfach hinzugefügt.
+             *
+             * @param value Messpunkt, der ein gefügt werden soll. Darf nicht {@code null} sein.
+             *              Sonst wird eine {@link java.lang.IllegalArgumentException} geworfen.
+             * @return
+             *      Wenn der Punkt auserhalb von MAX_DISTANCE_TO_NEXT liegt,
+             *      wird -1 zurückgegeben.
+             *      In diesem Fall kann nach ausführen dieser Mehtode ein neues Hinderniss erzeugt werden.
+             *
+             *      Wenn der Punkt auserhalb von MIN_DISTANCE_TO_NEXT liegt,
+             *      wird 0 zurückgegeben.
+             *
+             *      Wenn der Punkt eingefügt werden konnte, wird 1 zurückgegeben.
+             */
+            public int addValue(final Value value) {
+                if (value == null) throw  new IllegalArgumentException();
+
+                if (values.isEmpty()) {
+                    values.add(value);
+                    return 1;
+                }
+
+
+                //Aus Geschwindigkeitsgründen nur für erstes und letztes Element.
+
+                //Prüfung für das erste Element
+                float length = value.getValue_position().sub(values.get(0).getValue_position()).lengthSquared();
+
+                if (length >= MAX_DISTANCE_TO_NEXT*MAX_DISTANCE_TO_NEXT) {
+                    return -1;
+                } else if (length > MIN_DISTANCE_TO_NEXT*MIN_DISTANCE_TO_NEXT) {
+                    values.add(0, value);
+                    return 1;
+
+                } else {
+                    //Prüfung für das letze Element
+                    length = value.getValue_position().sub(values.get(values.size()-1).getValue_position()).lengthSquared();
+
+                    if (length >= MAX_DISTANCE_TO_NEXT*MAX_DISTANCE_TO_NEXT) {
+                        return -1;
+                    } else if (length > MIN_DISTANCE_TO_NEXT*MIN_DISTANCE_TO_NEXT) {
+                        values.add(value);
+                        return 1;
+                    } else {
+                        return 0;
+                    }
+                }
+            }
+
+            /**
+             * aktualisiert alle Values in Obstacle. Winkel wird neu berechnet und Länge.
+             * TODO geht das auch nebenläufig ???
+             */
+            public void updateObstacle(final Robot robot) {
+                /*
+                for(Value value : values) {
+                    value.setDistance(
+                            value.getValue_position().sub(robot.position()).length()
+                    );
+                    value.setDegree(
+                        //TODO
+                    );
+                }
+                */
+            }
+
+            /**
+             * Zeichnet das Obstacle in die Welt. //TODO Nur in draw-global möglich ?
+             */
+            public void drawObstacle() {
+                noStroke();
+                fill(255,50,0);
+
+                for (Value v : values) {
+                    Vec2 pos = v.getValue_position();
+                    ellipse(pos.x, pos.y, 2, 2);
+                }
+            }
+
+            /**
+             * Gibt eine Kopie der ArrayList zurück.
+             *
+             * @return Kopie der ArrayList
+             */
+            public ArrayList<Value> GetValues() {
+                return new ArrayList<>(values);
+            }
+
+        }
 
         private float mAngle;
+
+        /**
+         * Enthält alle gemessenen Hindernisse.
+         */
+        private final ArrayList<Obstacle> obstacles;
+
+        /**
+         * Speichert, ob der Roboter links (LEFT_DRIVING) oder rechts(RIGHT_DRIVING) einlenkt.
+         * Andere Stati sind nicht zulässig.
+         */
+        private ROBO_STATUS direction;
+
+        /**
+         * Speichert den Bewegungsstatus FORWARD, BACKWARD, STANDING.
+         * Andere Stati sind nicht zulässig.
+         */
+        private ROBO_STATUS status;
 
         private final Sensor mSensor_front;
         private final Sensor mSensor_left;
@@ -153,123 +363,133 @@ public class playground extends PApplet{
         private final Sensor mSensor_back;
         private final Sensor mSensor_tentacle;
 
-        private final DetectionField[] fields = new DetectionField[4];
-
         MyRobot(Environment pEnvironment) {
             super(pEnvironment);
+
+            obstacles = new ArrayList<>();
 
             mSensor_front    = addSensor(0      , maxSensorRange);
             mSensor_left     = addSensor(- PI/2 , maxSensorRange);
             mSensor_right    = addSensor(PI/2   , maxSensorRange);
             mSensor_back     = addSensor(PI     , maxSensorRange);
             mSensor_tentacle = addSensor(0      , 10.0f);
+
+            direction = ROBO_STATUS.LEFT_DRIVING;
+            status = ROBO_STATUS.BACKWARD.FORWARD;
         }
 
         public void update(float pDeltaTime) {
 
             mAngle += pDeltaTime * 2;
 
-            mSensor_front.angle( mAngle          );
-            mSensor_back.angle ( mAngle + PI     );
-            mSensor_left.angle ( mAngle + PI/2   );
-            mSensor_right.angle( mAngle + 3*PI/2 );
+            //Sonsor-Rotationsanpassung. Je nach Richtung, in die sich der Roboter bewegen soll.
+            switch (direction) {
+                case LEFT_DRIVING:
+                    mSensor_front.angle( -(mAngle)          );
+                    mSensor_back.angle ( -(mAngle + PI)     );
+                    mSensor_left.angle ( -(mAngle + PI/2)   );
+                    mSensor_right.angle( -(mAngle + 3*PI/2) );
+                    break;
+                case RIGHT_DRIVING:
+                    mSensor_front.angle( mAngle          );
+                    mSensor_back.angle ( mAngle + PI     );
+                    mSensor_left.angle ( mAngle + PI/2   );
+                    mSensor_right.angle( mAngle + 3*PI/2 );
+                    break;
+            }
 
-            fields[0] = mSensor_front.triggered() ?
-                    DetectionField.selectField(mSensor_front.angle(), mSensor_front.obstacleDistance()) : null;
+            //Hindernisse merken
+            if (mSensor_front.triggered()) {
+                addObstacle(
+                        new Value(mSensor_front.obstacle(), mSensor_front.angle(), mSensor_front.obstacleDistance())
+                );
+            }
+            if (mSensor_back.triggered()) {
+                addObstacle(
+                        new Value(mSensor_back.obstacle(), mSensor_back.angle(), mSensor_back.obstacleDistance())
+                );
+            }
+            if (mSensor_left.triggered()) {
+                addObstacle(
+                        new Value(mSensor_left.obstacle(), mSensor_left.angle(), mSensor_left.obstacleDistance())
+                );
+            }
+            if (mSensor_right.triggered()) {
+                addObstacle(
+                        new Value(mSensor_right.obstacle(), mSensor_right.angle(), mSensor_right.obstacleDistance())
+                );
+            }
 
-            fields[1] = mSensor_back. triggered() ?
-                    DetectionField.selectField(mSensor_back.angle(), mSensor_back.obstacleDistance()): null;
-
-            fields[2] = mSensor_left. triggered() ?
-                    DetectionField.selectField(mSensor_left.angle(), mSensor_left.obstacleDistance()): null;
-
-            fields[3] = mSensor_right.triggered() ?
-                    DetectionField.selectField(mSensor_right.angle(), mSensor_right.obstacleDistance()): null;
-
-
+            //TODO
+            /*
             if (false) {
 
             } else {
                 speed(maxForwardSpeed);
                 steer(angleToGoal());
             }
+            */
 
             /* steer robot and controll its motor */
             if (keyPressed) {
                 switch (key) {
                     case 'a':
                         steer(steer() + 0.1f);
+                        direction = ROBO_STATUS.LEFT_DRIVING;
                         break;
                     case 'd':
                         steer(steer() - 0.1f);
+                        direction = ROBO_STATUS.RIGHT_DRIVING;
                         break;
                     case 'w':
                         speed(50);
+                        status = ROBO_STATUS.FORWARD;
                         break;
                     case 's':
                         speed(maxBackwardSpeed);
+                        status = ROBO_STATUS.BACKWARD;
                         break;
                 }
             }
 
-            /*
-            OLD CODE
-            speed(maxForwardSpeed/2);
 
-            if (mSensor_front.triggered()) {
-                sensorFrontAngle = mSensor_front.angle()%(2*PI);
+        }
 
-                println(sensorFrontAngle);
+        /**
+         * Fügt ein Messpunkt zu den beakannten Hindernissen hinzu.
+         *
+         * @param value Ein Messpunkt eines Sensors, wenn er ausgelöst wurde.
+         */
+        public void addObstacle(final Value value) {
+            if (value == null) throw new IllegalArgumentException();
 
-                if (sensorFrontAngle <= PI/2 && !steerLeft) {
-                    steerRight = true;
-                    lastTime = steeringTime;
-                } else if(sensorFrontAngle > 3*PI/2 && !steerRight) {
-                    steerLeft = true;
-                    lastTime = steeringTime;
-
-                } else if(oldPosition.sub(this.position()).length() <= EPS && (sensorFrontAngle <= PI/2 || sensorFrontAngle >= 3*PI/2) && !driveBack) {
-                    driveBack = true;
-                    lastTime = backTime;
-                }
+            if (obstacles.isEmpty()) {
+                //Neues Obstacle wird erzeugt und Value wird hinzugefügt
+                Obstacle obstacle = new Obstacle();
+                obstacle.addValue(value);
+                //nur Obstacle übergeben
+                obstacles.add(obstacle);
+                return;
             }
 
-            if (steerLeft) {
-                steer(steer() - 0.9f);
-                speed(maxForwardSpeed/4);
-                lastTime -= mSensor_front.triggered() ? 1 : 4;
-                if(lastTime <= 0){
-                    steerLeft = false;
-                }
-            }
-            if (steerRight) {
-                steer(steer() + 0.9f);
-                speed(maxForwardSpeed/4);
-                lastTime -= mSensor_front.triggered() ? 1 : 4;
-                if(lastTime <= 0){
-                    steerRight = false;
-                }
-            }
-            if (driveBack) {
-                speed(maxBackwardSpeed);
-                if (sensorFrontAngle >= PI && sensorFrontAngle <= 3*PI/2) {
-                    steer(steer() + 0.9f);
-                } else {
-                    steer(steer() - 0.9f);
-                }
-                backTime -= 1;
-                if(backTime <= 0){
-                    driveBack = false;
-                }
-            }
+            int countToNewObstacle = 0;
+            for (Obstacle o : obstacles) {
+                switch (o.addValue(value)) {
+                    case 1:
+                        return;
+                    case -1:
+                       countToNewObstacle++;
 
-
-            oldPosition = this.position();
-
-            if (!steerLeft && !steerRight){
-                steer(0);
+                    //Punkte die zwischen sehr nah an bereitsbekannten Messwerten liegen Spiele hier keine Rolle mehr
+                    //Deswegen wird hier Fall 0 nicht beachtet.
+                }
             }
-            */
+            //Neues Hindernis erzeugen, wenn der Messpunkt zu keine Hindernis zugeordnet werden kann.
+            if (countToNewObstacle == obstacles.size()) {
+                Obstacle obstacle = new Obstacle();
+                obstacle.addValue(value);
+                obstacles.add(obstacle);
+            }
         }
 
         public void draw(PGraphics g) {
@@ -300,6 +520,11 @@ public class playground extends PApplet{
             stroke(30);
             Vec2 target = mEnvironment.target().position();
             line(target.x, target.y, position().x, position().y);
+
+            //TODO Warum wird hier nur bei Sensor.triggered() gezeichnet ???
+            for (Obstacle o : obstacles) {
+                o.drawObstacle();
+            }
         }
     }
 
