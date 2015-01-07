@@ -16,7 +16,7 @@ public class playground extends PApplet{
 
     public void setup() {
         size(1024, 768);
-        mEnvironment = new Environment(this, Environment.MAP_BAELLEBAD);
+        mEnvironment = new Environment(this, Environment.MAP_RANDOM_WALLS);
 
         mRobot = new MyRobot(mEnvironment);
         mEnvironment.add(mRobot);
@@ -144,6 +144,7 @@ public class playground extends PApplet{
 
     class MyRobot extends Robot {
 
+        //TODO Erstmal nicht
         /**
          * Repräsentiert den Messpunkt eines Sensors.
          */
@@ -180,7 +181,7 @@ public class playground extends PApplet{
                 if (value_position == null) {
                     throw new IllegalArgumentException();
                 }
-                this.value_position = value_position;
+                this.value_position = new Vec2(value_position);
                 this.degree = degree;
                 this.distance = distance;
             }
@@ -209,11 +210,14 @@ public class playground extends PApplet{
 
         }
 
+        //TODO Erstmal nicht
         /**
          * Datenstruktur für ein Hinderniss.
          * Besteht aus einzelen Messpunkten, die in einer ArrayList gespeichert werden.
          * Ein neuer Messpunkt, der in der Nähe eines schon in der ArrayList befindlichen Messpunktes ist,
          * wird an die richtige Position in der ArrayList gestellt.
+         *
+         * Zwei Hindernisse werde zu einem, wenn ihre Enden aneinander liegen. TODO
          */
         class Obstacle {
 
@@ -267,6 +271,7 @@ public class playground extends PApplet{
 
                 if (values.isEmpty()) {
                     values.add(value);
+                    position = value.getValue_position();
                     return 1;
                 }
 
@@ -280,6 +285,7 @@ public class playground extends PApplet{
                     return -1;
                 } else if (length > MIN_DISTANCE_TO_NEXT*MIN_DISTANCE_TO_NEXT) {
                     values.add(0, value);
+                    //TODO calculate position
                     return 1;
 
                 } else {
@@ -290,11 +296,19 @@ public class playground extends PApplet{
                         return -1;
                     } else if (length > MIN_DISTANCE_TO_NEXT*MIN_DISTANCE_TO_NEXT) {
                         values.add(value);
+                        //TODO calculate position
                         return 1;
                     } else {
                         return 0;
                     }
                 }
+            }
+
+            /**
+             * Liegen Datenpunkte von zwei Hindernissen in unmittlebarer Nähe, werden sie zu einem Hinderniss zusammen gefügt.
+             */
+            public void mergeObstacles() {
+
             }
 
             /**
@@ -340,6 +354,7 @@ public class playground extends PApplet{
 
         private float mAngle;
 
+        //TODO Erstmal nicht
         /**
          * Enthält alle gemessenen Hindernisse.
          */
@@ -357,22 +372,24 @@ public class playground extends PApplet{
          */
         private ROBO_STATUS status;
 
-        private final Sensor mSensor_front;
-        private final Sensor mSensor_left;
-        private final Sensor mSensor_right;
-        private final Sensor mSensor_back;
-        private final Sensor mSensor_tentacle;
+        private final Sensor[] sensors;
 
         MyRobot(Environment pEnvironment) {
             super(pEnvironment);
 
             obstacles = new ArrayList<>();
+            sensors = new Sensor[5];
 
-            mSensor_front    = addSensor(0      , maxSensorRange);
-            mSensor_left     = addSensor(- PI/2 , maxSensorRange);
-            mSensor_right    = addSensor(PI/2   , maxSensorRange);
-            mSensor_back     = addSensor(PI     , maxSensorRange);
-            mSensor_tentacle = addSensor(0      , 10.0f);
+            //front
+            sensors[0] = addSensor(0      , maxSensorRange);
+            //left
+            sensors[1] = addSensor(- PI/2 , maxSensorRange);
+            //right
+            sensors[2] = addSensor(PI/2   , maxSensorRange);
+            //back
+            sensors[3] = addSensor(PI     , maxSensorRange);
+            //tentacle
+            sensors[4] = addSensor(0      , 10.0f);
 
             direction = ROBO_STATUS.LEFT_DRIVING;
             status = ROBO_STATUS.BACKWARD.FORWARD;
@@ -385,50 +402,29 @@ public class playground extends PApplet{
             //Sonsor-Rotationsanpassung. Je nach Richtung, in die sich der Roboter bewegen soll.
             switch (direction) {
                 case LEFT_DRIVING:
-                    mSensor_front.angle( -(mAngle)          );
-                    mSensor_back.angle ( -(mAngle + PI)     );
-                    mSensor_left.angle ( -(mAngle + PI/2)   );
-                    mSensor_right.angle( -(mAngle + 3*PI/2) );
+                    sensors[0].angle( -(mAngle)          );
+                    sensors[1].angle ( -(mAngle + PI)     );
+                    sensors[2].angle ( -(mAngle + PI/2)   );
+                    sensors[3].angle( -(mAngle + 3*PI/2) );
                     break;
                 case RIGHT_DRIVING:
-                    mSensor_front.angle( mAngle          );
-                    mSensor_back.angle ( mAngle + PI     );
-                    mSensor_left.angle ( mAngle + PI/2   );
-                    mSensor_right.angle( mAngle + 3*PI/2 );
+                    sensors[0].angle( mAngle          );
+                    sensors[1].angle ( mAngle + PI     );
+                    sensors[2].angle ( mAngle + PI/2   );
+                    sensors[3].angle( mAngle + 3*PI/2 );
                     break;
-            }
-
-            //Hindernisse merken
-            if (mSensor_front.triggered()) {
-                addObstacle(
-                        new Value(mSensor_front.obstacle(), mSensor_front.angle(), mSensor_front.obstacleDistance())
-                );
-            }
-            if (mSensor_back.triggered()) {
-                addObstacle(
-                        new Value(mSensor_back.obstacle(), mSensor_back.angle(), mSensor_back.obstacleDistance())
-                );
-            }
-            if (mSensor_left.triggered()) {
-                addObstacle(
-                        new Value(mSensor_left.obstacle(), mSensor_left.angle(), mSensor_left.obstacleDistance())
-                );
-            }
-            if (mSensor_right.triggered()) {
-                addObstacle(
-                        new Value(mSensor_right.obstacle(), mSensor_right.angle(), mSensor_right.obstacleDistance())
-                );
             }
 
             //TODO
+
             /*
             if (false) {
 
             } else {
                 speed(maxForwardSpeed);
                 steer(angleToGoal());
-            }
-            */
+            } */
+
 
             /* steer robot and controll its motor */
             if (keyPressed) {
@@ -455,6 +451,7 @@ public class playground extends PApplet{
 
         }
 
+        //TODO erstmal nicht verwenden
         /**
          * Fügt ein Messpunkt zu den beakannten Hindernissen hinzu.
          *
@@ -497,10 +494,10 @@ public class playground extends PApplet{
             rectMode(CENTER);
             noStroke();
             fill(0, 127, 255);
-            if (!mSensor_front.triggered()) {
+            if (!sensors[0].triggered()) {
                 rect(1.5f, -2, 2, 2);
             }
-            if (!mSensor_left.triggered()) {
+            if (!sensors[1].triggered()) {
                 ellipse(-1.5f, -2, 2, 2);
             }
 
@@ -520,11 +517,6 @@ public class playground extends PApplet{
             stroke(30);
             Vec2 target = mEnvironment.target().position();
             line(target.x, target.y, position().x, position().y);
-
-            //TODO Warum wird hier nur bei Sensor.triggered() gezeichnet ???
-            for (Obstacle o : obstacles) {
-                o.drawObstacle();
-            }
         }
     }
 
