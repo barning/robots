@@ -5,7 +5,9 @@ import processing.core.PApplet;
 import processing.core.PGraphics;
 import de.hfkbremen.robots.challenge.*;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 
 public class playground extends PApplet{
@@ -13,19 +15,31 @@ public class playground extends PApplet{
     Environment mEnvironment;
     MyRobot mRobot;
     float mScale = 5;
+    Trace mTrace;
+    OSD mOSD;
 
     public void setup() {
         size(1024, 768);
-        mEnvironment = new Environment(this, Environment.MAP_RANDOM_WALLS);
+        mEnvironment = new Environment(this, Environment.MAP_BAELLEBAD);
 
         mRobot = new MyRobot(mEnvironment);
         mEnvironment.add(mRobot);
+
+        mTrace = new Trace(mRobot);
+        mOSD = new OSD(this, mEnvironment);
     }
 
     public void draw() {
         background(255);
         mEnvironment.update();
-        mEnvironment.draw(g, mScale, mRobot.position());
+
+        mTrace.update(mEnvironment.delta_time());
+        mEnvironment.beginDraw(g, mScale, mRobot.position());
+        stroke(0);
+        noFill();
+        mTrace.draw(g);
+        mEnvironment.endDraw(g);
+        mOSD.draw(g);
     }
 
     /**
@@ -136,10 +150,21 @@ public class playground extends PApplet{
     }
 
     /**
-     * Satus des Robots. Der Roboter kann jeweils nur FORWARD oder BACKWARD einnehmen und LEFT_DRIVING oder RIGHT_DRIVING
+     * Satus des Robots. Der Roboter kann jeweils nur FORWARD oder BACKWARD einnehmen und LEFT_DIRECTION oder RIGHT_DIRECTION
      */
     public enum ROBO_STATUS {
-        FORWARD, BACKWARD, STANDING, LEFT_DRIVING, RIGHT_DRIVING
+        FORWARD("forward"), BACKWARD("backward"), STANDING("standing"), LEFT_DIRECTION("left"), RIGHT_DIRECTION("right"),
+        NO_STEERING("forward driving");
+
+        private String name;
+
+        ROBO_STATUS(final String name) {
+            this.name = name;
+        }
+
+        public String toString() {
+            return name;
+        }
     }
 
     class MyRobot extends Robot {
@@ -352,16 +377,93 @@ public class playground extends PApplet{
 
         }
 
+        /**
+         * Container für nützliche Daten über den Roboter aus dem letzten Frame
+         */
+        class LastRobo {
+
+            private float steer;
+
+            private float speed;
+
+            public float getSteer() {
+                return steer;
+            }
+
+            public float getSpeed() {
+                return speed;
+            }
+
+            public Vec2 getPosition() {
+                return lastPosition;
+            }
+
+            public float[][] getLastSensorData() {
+                return lastSensorData;
+            }
+
+            private Vec2 lastPosition;
+
+            private float[][] lastSensorData = new float[5][4];
+
+            public LastRobo(final float steer, final float speed, final Vec2 lastPosition, final Sensor[] sensors) {
+                if (lastPosition == null || sensors == null) {
+                    throw new IllegalArgumentException();
+                }
+                this.steer = steer;
+                this.speed = speed;
+                this.lastPosition = new Vec2 (lastPosition);
+
+                for (int i = 0; i < 5; i++) {
+                    for (int j = 0; j < 4; j++) {
+                        switch (j) {
+                            case 0:
+                                lastSensorData[i][j] = sensors[i].angle();
+                                break;
+                            case 1:
+                                lastSensorData[i][j] = sensors[i].obstacleDistance();
+                                break;
+                            case 2:
+                                lastSensorData[i][j] = sensors[i].obstacle().x;
+                                break;
+                            case 3:
+                                lastSensorData[i][j] = sensors[i].obstacle().y;
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * RingBuffer für Roboter Daten. Hat feste Größe. NUR add verwenden!!!, wenn man hinzufügen möchte.
+         */
+        class RingBuffer <E> extends ArrayDeque<E>{
+
+            private final int maxCapacity;
+
+            public RingBuffer(final int maxCapacity) {
+                super(maxCapacity);
+                if (maxCapacity <= 0) throw new IllegalArgumentException();
+                this.maxCapacity = maxCapacity;
+            }
+
+            @Override
+            public void push(E e) {
+                super.push(e);
+                if (size() > maxCapacity) {
+                    removeLast();
+                }
+            }
+        }
+
+        /**
+         * Winkel für Drehung der einzelnen Sensoren
+         */
         private float mAngle;
 
-        //TODO Erstmal nicht
         /**
-         * Enthält alle gemessenen Hindernisse.
-         */
-        private final ArrayList<Obstacle> obstacles;
-
-        /**
-         * Speichert, ob der Roboter links (LEFT_DRIVING) oder rechts(RIGHT_DRIVING) einlenkt.
+         * Speichert, ob der Roboter links (LEFT_DIRECTION) oder rechts(RIGHT_DIRECTION) einlenkt.
          * Andere Stati sind nicht zulässig.
          */
         private ROBO_STATUS direction;
@@ -372,13 +474,37 @@ public class playground extends PApplet{
          */
         private ROBO_STATUS status;
 
+        /**
+         * Sensoren des Roboters
+         */
         private final Sensor[] sensors;
+
+        /**
+         * Größe für lastFrameRobos. Entspricht drei Frames
+         */
+        private int LAST_ROBO_SIZE = 4;
+
+        /**
+         * Die letzten drei Roboter aus den letzten drei Frames.
+         */
+        private RingBuffer<LastRobo> lastRobos;
+
+        /**
+         * Epsilon für das isStanding-Prädikat
+         */
+        private final float EPS = 0.001f;
+
+        /**
+         * Deltasteer angle for tentacle movement
+         */
+        private final float TENTACLE_STEERING = 7*PI/4;
 
         MyRobot(Environment pEnvironment) {
             super(pEnvironment);
 
-            obstacles = new ArrayList<>();
             sensors = new Sensor[5];
+            lastRobos = new RingBuffer<>(LAST_ROBO_SIZE);
+
 
             //front
             sensors[0] = addSensor(0      , maxSensorRange);
@@ -389,104 +515,225 @@ public class playground extends PApplet{
             //back
             sensors[3] = addSensor(PI     , maxSensorRange);
             //tentacle
-            sensors[4] = addSensor(0      , 10.0f);
+            sensors[4] = addSensor(0      , maxSensorRange);
 
-            direction = ROBO_STATUS.LEFT_DRIVING;
-            status = ROBO_STATUS.BACKWARD.FORWARD;
+            direction = ROBO_STATUS.NO_STEERING;
+            status = ROBO_STATUS.FORWARD;
         }
 
         public void update(float pDeltaTime) {
 
             mAngle += pDeltaTime * 2;
 
-            //Sonsor-Rotationsanpassung. Je nach Richtung, in die sich der Roboter bewegen soll.
             switch (direction) {
-                case LEFT_DRIVING:
-                    sensors[0].angle( -(mAngle)          );
-                    sensors[1].angle ( -(mAngle + PI)     );
-                    sensors[2].angle ( -(mAngle + PI/2)   );
-                    sensors[3].angle( -(mAngle + 3*PI/2) );
+                case LEFT_DIRECTION:
+                    sensors[0].angle(-(mAngle));
+                    sensors[1].angle(-(mAngle + PI));
+                    sensors[2].angle(-(mAngle + PI / 2));
+                    sensors[3].angle(-(mAngle + 3 * PI / 2));
                     break;
-                case RIGHT_DRIVING:
-                    sensors[0].angle( mAngle          );
-                    sensors[1].angle ( mAngle + PI     );
-                    sensors[2].angle ( mAngle + PI/2   );
-                    sensors[3].angle( mAngle + 3*PI/2 );
+                case RIGHT_DIRECTION:
+                    sensors[0].angle(mAngle);
+                    sensors[1].angle(mAngle + PI);
+                    sensors[2].angle(mAngle + PI / 2);
+                    sensors[3].angle(mAngle + 3 * PI / 2);
+                    break;
+                case NO_STEERING:
+                    sensors[0].angle(-(mAngle));
+                    sensors[1].angle(-(mAngle + PI));
+                    sensors[2].angle(-(mAngle + PI / 2));
+                    sensors[3].angle(-(mAngle + 3 * PI / 2));
                     break;
             }
 
-            //TODO
+            switch (status) {
+                case FORWARD:
+                    sensors[4].angle(sin(mAngle) * 1/2 - steer());
+                    break;
+                case BACKWARD:
+                    sensors[4].angle(sin(mAngle) * 1/2 - steer() + PI);
+                    break;
+                default:
+                    sensors[4].angle(sin(mAngle) * 1/2);
+                    break;
+            }
 
-            /*
-            if (false) {
+
+            boolean obstacleInView = sensors[0].triggered() || sensors[1].triggered()
+                                  || sensors[2].triggered() || sensors[3].triggered()
+                                  || sensors[4].triggered();
+
+            if (obstacleInView) {
+
+                Sensor sensor;
+                switch (status) {
+                    case FORWARD:
+                        sensor = mostDisturbingFrontObstacle(sensors);
+
+                        if (sensor != null) {
+                            speed(maxForwardSpeed * sensor.obstacleDistance() * 0.2f);
+
+                            float steeringAngle = sensor.angle()%(2*PI);
+
+                            if (sensor.obstacleDistance() < 0.90f) {
+
+                                if (steeringAngle > -3*PI/2) {
+                                    steer(-maxSteeringAngle);
+                                } else {
+                                    steer(maxSteeringAngle);
+                                }
+                            }
+                        }
+
+                        break;
+                    case BACKWARD:
+                        sensor = mostDisturbingFrontObstacle(sensors);
+                        break;
+                }
 
             } else {
-                speed(maxForwardSpeed);
-                steer(angleToGoal());
-            } */
 
+                speed(maxForwardSpeed);
+                float steeringAngle = angleToGoal();
+                steer(steeringAngle);
+            }
 
             /* steer robot and controll its motor */
             if (keyPressed) {
                 switch (key) {
                     case 'a':
                         steer(steer() + 0.1f);
-                        direction = ROBO_STATUS.LEFT_DRIVING;
                         break;
                     case 'd':
                         steer(steer() - 0.1f);
-                        direction = ROBO_STATUS.RIGHT_DRIVING;
                         break;
                     case 'w':
                         speed(50);
-                        status = ROBO_STATUS.FORWARD;
                         break;
                     case 's':
+                        speed(0);
+                        steer(0);
+                        break;
+                    case  'x':
                         speed(maxBackwardSpeed);
-                        status = ROBO_STATUS.BACKWARD;
                         break;
                 }
             }
 
+            //Save LastFrameRobo -> Before State Update !!!
+            lastRobos.push(new LastRobo(steer(), speed(), position(), sensors));
+            //Update States
+            updateStates();
 
         }
 
-        //TODO erstmal nicht verwenden
-        /**
-         * Fügt ein Messpunkt zu den beakannten Hindernissen hinzu.
-         *
-         * @param value Ein Messpunkt eines Sensors, wenn er ausgelöst wurde.
-         */
-        public void addObstacle(final Value value) {
-            if (value == null) throw new IllegalArgumentException();
+        private void updateStates() {
 
-            if (obstacles.isEmpty()) {
-                //Neues Obstacle wird erzeugt und Value wird hinzugefügt
-                Obstacle obstacle = new Obstacle();
-                obstacle.addValue(value);
-                //nur Obstacle übergeben
-                obstacles.add(obstacle);
-                return;
+            float middleVelocity = 0f;
+            int countLeftDirection = 0;
+            int countRightDirection = 0;
+
+            Iterator<LastRobo> iter = lastRobos.iterator();
+            LastRobo lastRobo = iter.hasNext() ? iter.next() : null;
+            while (iter.hasNext() && lastRobo != null) {
+                LastRobo newerRobo = iter.next();
+
+                middleVelocity += newerRobo.getPosition().sub(lastRobo.getPosition()).length();
+
+                lastRobo = newerRobo;
+            }
+            middleVelocity /= lastRobos.size();
+
+            //Status test
+            if (-EPS < middleVelocity && middleVelocity < EPS) {
+                status = ROBO_STATUS.STANDING;
+            } else if(middleVelocity <= -EPS) {
+                status = ROBO_STATUS.BACKWARD;
+            } else {
+                status = ROBO_STATUS.FORWARD;
             }
 
-            int countToNewObstacle = 0;
-            for (Obstacle o : obstacles) {
-                switch (o.addValue(value)) {
-                    case 1:
-                        return;
-                    case -1:
-                       countToNewObstacle++;
 
-                    //Punkte die zwischen sehr nah an bereitsbekannten Messwerten liegen Spiele hier keine Rolle mehr
-                    //Deswegen wird hier Fall 0 nicht beachtet.
+            for (LastRobo robo : lastRobos) {
+                if (robo.getSteer() <= 0) {
+                    countLeftDirection++;
+                } else {
+                    countRightDirection++;
                 }
             }
-            //Neues Hindernis erzeugen, wenn der Messpunkt zu keine Hindernis zugeordnet werden kann.
-            if (countToNewObstacle == obstacles.size()) {
-                Obstacle obstacle = new Obstacle();
-                obstacle.addValue(value);
-                obstacles.add(obstacle);
+
+            //Direction test
+            if (countLeftDirection > countRightDirection) {
+                direction = ROBO_STATUS.LEFT_DIRECTION;
+            } else if (countLeftDirection < countRightDirection) {
+                direction = ROBO_STATUS.RIGHT_DIRECTION;
+            } else {
+                direction = ROBO_STATUS.NO_STEERING;
             }
+
+        }
+
+        private Sensor mostDisturbingFrontObstacle(final Sensor[] sensors) {
+            if (sensors == null) throw  new IllegalArgumentException();
+
+            Sensor mostImportantSensor = null;
+            float distanceToObstacle = MAX_FLOAT;
+            float angleToObstacle = PI; // Ab der Hälfte muss getestet werden
+
+            for (Sensor s : sensors) {
+                if (s.triggered()) {
+                    float angleToTest = s.angle() % (2 * PI);
+
+                    //Ist der Winkel überhaupt relevant ?
+                    if (angleToTest >= PI/2 && angleToTest <= 3*PI/2) {
+                        continue;
+                    }
+
+                    if (angleToTest > 3*PI/2) {
+                        angleToTest = 2*PI - angleToTest;
+                    }
+
+                    if (s.obstacleDistance() < distanceToObstacle && angleToTest < angleToObstacle) {
+                        distanceToObstacle = s.obstacleDistance();
+                        angleToObstacle = angleToTest;
+                        mostImportantSensor = s;
+                    }
+                }
+            }
+            return mostImportantSensor;
+        }
+
+        private Sensor mostDisturbingBackObstacle(final Sensor[] sensors) {
+
+            Sensor mostImportantSensor = null;
+            float distanceToObstacle = MAX_FLOAT;
+            float angleToObstacle = 2*PI; // Ab der Hälfte muss getestet werden
+
+            for (Sensor s : sensors) {
+                if (s.triggered()) {
+                    float angleToTest = s.angle() % (2 * PI);
+
+                    //Ist der Winkel überhaupt relevant ?
+                    if (angleToTest < PI/2 && angleToTest > 3*PI/2) {
+                        continue;
+                    }
+
+                    if (angleToTest > PI) {
+                        angleToTest = angleToTest - PI;
+                    }
+
+                    if (angleToTest <= PI) {
+                        angleToTest = PI - angleToTest;
+                    }
+
+                    if (s.obstacleDistance() < distanceToObstacle && angleToTest < angleToObstacle) {
+                        distanceToObstacle = s.obstacleDistance();
+                        angleToObstacle = angleToTest;
+                        mostImportantSensor = s;
+                    }
+                }
+            }
+            return mostImportantSensor;
         }
 
         public void draw(PGraphics g) {
@@ -494,12 +741,32 @@ public class playground extends PApplet{
             rectMode(CENTER);
             noStroke();
             fill(0, 127, 255);
-            if (!sensors[0].triggered()) {
-                rect(1.5f, -2, 2, 2);
+
+
+            switch (direction) {
+                case LEFT_DIRECTION:
+                    triangle(2, 2, 4, 0, 2, -2);
+                    break;
+                case RIGHT_DIRECTION:
+                    triangle(-2, 2, -4, 0, -2, -2);
+                    break;
+                case NO_STEERING:
+                    //Draw Nothing
+                    break;
             }
-            if (!sensors[1].triggered()) {
-                ellipse(-1.5f, -2, 2, 2);
+
+            switch (status) {
+                case FORWARD:
+                    triangle(2, 2, 0, 4, -2, 2);
+                    break;
+                case BACKWARD:
+                    triangle(2, -2, 0, -4, -2, -2);
+                    break;
+                default:
+                    //Draw Nothing
             }
+
+
 
             stroke(0);
             //draw a line pointing towards the goal
@@ -517,6 +784,7 @@ public class playground extends PApplet{
             stroke(30);
             Vec2 target = mEnvironment.target().position();
             line(target.x, target.y, position().x, position().y);
+
         }
     }
 
