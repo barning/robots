@@ -311,7 +311,9 @@ public class playground extends PApplet{
          */
         private final int MAP_HEIGHT = (int) (1068/QUAD_SIZE);
 
-        //Raster für A* letzter Array speichert Nodedaten
+        /**
+         * Raster für A*
+         */
         private final Quad[][] map;
 
         /**
@@ -694,6 +696,13 @@ public class playground extends PApplet{
             }
         }
 
+        /**
+         * Checkt ob der Quad noch in der Map liegt.
+         *
+         * @param mapX
+         * @param mapY
+         * @return
+         */
         private boolean validQuad(final int mapX, final int mapY) {
             if (mapX < 0 || mapX >= MAP_WIDTH || mapY < 0 || mapY >= MAP_HEIGHT) {
                 return false;
@@ -701,11 +710,19 @@ public class playground extends PApplet{
             return true;
         }
 
+        /**
+         * Update Successor. Nur hinzufügen, wenn der neue f Wert kleiner als der Alte ist.
+         *
+         * @param successor
+         * @param costsInDist
+         * @param possiblePredecessor
+         */
         private void updateSucessor(final Quad successor, final float costsInDist, final Quad possiblePredecessor) {
             float tentativeDistToStart = successor.getDistToStart() + costsInDist;
             float f = tentativeDistToStart + successor.getH();
 
-            if ((!openList.contains(successor) || tentativeDistToStart < successor.getDistToStart()) && successor.getF() > f) {
+            if ((!openList.contains(successor) || tentativeDistToStart < successor.getDistToStart())
+                    && successor.getF() > f && !successor.isObstacale()) {
                 successor.setPredecessor(possiblePredecessor);
                 successor.setDistToStart(tentativeDistToStart);
                 successor.setF(f);
@@ -715,6 +732,22 @@ public class playground extends PApplet{
             }
         }
 
+        /**
+         * Fügt ein Obstacle in die Map ein. In einem Radius um ein Obstacle, wird die Heuristic der Quadranten verändert.
+         *
+         * @param opstaclePosition Position des Hindernisses
+         */
+        public void addObstacle(final Vec2 opstaclePosition) {
+            if (opstaclePosition == null) throw new IllegalArgumentException();
+            Vec2 obstacleMapPoint = worldToQuadpoint(opstaclePosition);
+            map[(int) obstacleMapPoint.x][(int) obstacleMapPoint.y].setObstacale(true);
+
+            //TODO Hier jetzt h werte verändern
+        }
+
+        /**
+         * Upadate der einzelnen States wie stehen, forwärts fahren usw.
+         */
         private void updateStates() {
 
             float middleVelocity = 0f;
@@ -762,6 +795,7 @@ public class playground extends PApplet{
 
         }
 
+        @Deprecated
         private Sensor mostDisturbingFrontObstacle(final Sensor[] sensors) {
             if (sensors == null) throw  new IllegalArgumentException();
 
@@ -792,6 +826,7 @@ public class playground extends PApplet{
             return mostImportantSensor;
         }
 
+        @Deprecated
         private Sensor mostDisturbingBackObstacle(final Sensor[] sensors) {
 
             Sensor mostImportantSensor = null;
