@@ -6,8 +6,8 @@ import processing.core.PGraphics;
 import de.hfkbremen.robots.challenge.*;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.PriorityQueue;
 
 
 public class playground extends PApplet{
@@ -20,7 +20,7 @@ public class playground extends PApplet{
 
     public void setup() {
         size(1024, 768);
-        mEnvironment = new Environment(this, Environment.MAP_BAELLEBAD);
+        mEnvironment = new Environment(this, Environment.MAP_RANDOM_WALLS);
 
         mRobot = new MyRobot(mEnvironment);
         mEnvironment.add(mRobot);
@@ -169,213 +169,136 @@ public class playground extends PApplet{
 
     class MyRobot extends Robot {
 
-        //TODO Erstmal nicht
         /**
-         * Repräsentiert den Messpunkt eines Sensors.
+         * Knoten eines Rasters. Wird für A* verwendet.
          */
-        class Value {
+        class Quad {
 
             /**
-             * Der Punkt in Weltkoordinaten, an dem das Objekt registriert wurde. Statisch!
+             * Heuristic für A*. Speichert die Luftlinie und
+             * verändert sich wenn eine blockierter Node in der Nähe ist.
              */
-            private final Vec2 value_position;
+            private float h;
 
             /**
-             * Der Winkel relativ zur Roboterspitze.
-             * Wird aktualisiert.
+             * f(x) = distToStart + h
              */
-            private float degree;
+            private float f;
 
             /**
-             * Der Abstand zum Robotermittlepunkt
-             * Wird aktualisiert.
+             * Gibt an ob der Node ein Obstacle ist.
              */
-            private float distance;
+            private boolean obstacale;
 
             /**
-             * Initialisiert einen Messpunkt.
-             *
-             * Wirft eine {@link java.lang.IllegalArgumentException},
-             * wenn {@code value_position} gleich {@code null} ist
-             *
-             * @param value_position Position zum Robotermittlepunkt zum Messzeitpunkt.
-             * @param degree Winkel relativ zur Roboterspitze zum Messzeitpunkt
-             * @param distance Abstand zum Robotermittlepunkt zum Messzeitpunkt
+             * Vorgängerknoten.
              */
-            Value(final Vec2 value_position, final float degree, final float distance) {
-                if (value_position == null) {
-                    throw new IllegalArgumentException();
-                }
-                this.value_position = new Vec2(value_position);
-                this.degree = degree;
-                this.distance = distance;
+            private Quad predecessor;
+
+            /**
+             * Distanz zum Startpunkt.
+             */
+            private float distToStart;
+
+            /**
+             * Farbwert eines Nodes
+             */
+            private float[] color = new float[3];
+
+            /**
+             * Erzeugt einen neuen Node.
+             * @param h Luftlinie + Gefahrenzuschlag
+             * @param obstacale Hinderniss ja/nein
+             */
+            public Quad(final float h, final boolean obstacale) {
+                if (h < 0) throw new IllegalArgumentException();
+                this.h = h;
+                this.obstacale = obstacale;
+                predecessor = null;
+                distToStart = 0;
+                f = 0;
+                //Lege Farbe fest
+                color[0] = 0;
+                color[1] = 0;
+                color[2] = 0;
             }
 
-            /* Getter Methoden */
-            public float getDegree() {
-                return degree;
+
+
+            public float getF() {
+                return f;
             }
 
-            public Vec2 getValue_position() {
-                return value_position;
+            public void setF(float f) {
+                if (f <= 0) throw new IllegalArgumentException();
+                this.f = f;
             }
 
-            public float getDistance() {
-                return distance;
+            public float getH() {
+                return h;
             }
 
-            /*Setter Methoden*/
-            public void setDegree(float degree) {
-                this.degree = degree;
+            public void setH(final float h) {
+                if (h < 0) throw new IllegalArgumentException();
+                this.h = h;
             }
 
-            public void setDistance(float distance) {
-                this.distance = distance;
+            public boolean isObstacale() {
+                return obstacale;
             }
 
+            public void setObstacale(final boolean obstacale) {
+                this.obstacale = obstacale;
+            }
+
+            public Quad getPredecessor() {
+                return predecessor;
+            }
+
+            public void setPredecessor(final Quad predecessor) {
+                this.predecessor = predecessor;
+            }
+
+            public float getDistToStart() {
+                return distToStart;
+            }
+
+            public void setDistToStart(final float distToStart) {
+                if (distToStart < 0) throw new IllegalArgumentException();
+                this.distToStart = distToStart;
+            }
+
+            /**
+             * Gibt Array zurück, der verändert werden darf.
+             * @return Array zum verändern der Farbwerte.
+             */
+            public float[] getColor() {
+                return color;
+            }
         }
 
-        //TODO Erstmal nicht
         /**
-         * Datenstruktur für ein Hinderniss.
-         * Besteht aus einzelen Messpunkten, die in einer ArrayList gespeichert werden.
-         * Ein neuer Messpunkt, der in der Nähe eines schon in der ArrayList befindlichen Messpunktes ist,
-         * wird an die richtige Position in der ArrayList gestellt.
-         *
-         * Zwei Hindernisse werde zu einem, wenn ihre Enden aneinander liegen. TODO
+         * Gibt die größe eines Rasterfelds an. Gibt auch implizit an, welche abstände zwischen den Knoten existieren.
          */
-        class Obstacle {
+        private final float QUAD_SIZE = 1;
 
-            /**
-             * Maximale Distanz, bei der ein Messpunkt noch hinzugefügt wird. Inklusiv.
-             * TODO ein passender Wert muss noch gefunden werden.
-             */
-            private final float MAX_DISTANCE_TO_NEXT = 0.1f;
+        /**
+         * Breite der A* Map. Muss durch 2 ohne Rest teilbar sein.
+         */
+        private final int MAP_WIDTH = (int) (1324/QUAD_SIZE);
+        /**
+         * Höhe der A* Map. Muss durch 2 ohne Rest teilbar sein.
+         */
+        private final int MAP_HEIGHT = (int) (1068/QUAD_SIZE);
 
-            /**
-             * Minimale Distanz, bei der ein Messpunkt nicht mehr hinzugefügt wird. Inklusiv.
-             * TODO ein passender Wert muss noch gefunden werden.
-             */
-            private final float MIN_DISTANCE_TO_NEXT = 0.05f;
+        //Raster für A* letzter Array speichert Nodedaten
+        private final Quad[][] map;
 
-            /**
-             * Der Mittelpunkt des Hindernisses in Weltkoordinaten.
-             * Wir immer aktualisiert, wenn sich das Objekt ändert.
-             */
-            private Vec2 position;
-
-            private final ArrayList<Value> values;
-
-            /**
-             * Initialisiert ein Hinderniss.
-             */
-            Obstacle() {
-                values = new ArrayList<>();
-            }
-
-            /**
-             * Fügt ein neuen Messpunkt in die ArrayList ein. Ein neuer Messpunkt wird nur dann in die ArrayList eingefügt,
-             * wenn zu einem bereits enthalten Messpunkt den Abstand MAX_DISTANCE_TO_NEXT und MIN_DISTANCE_TO_NEXT einhält.
-             *
-             * Wenn die ArrayList noch leer ist, wird das Objekt einfach hinzugefügt.
-             *
-             * @param value Messpunkt, der ein gefügt werden soll. Darf nicht {@code null} sein.
-             *              Sonst wird eine {@link java.lang.IllegalArgumentException} geworfen.
-             * @return
-             *      Wenn der Punkt auserhalb von MAX_DISTANCE_TO_NEXT liegt,
-             *      wird -1 zurückgegeben.
-             *      In diesem Fall kann nach ausführen dieser Mehtode ein neues Hinderniss erzeugt werden.
-             *
-             *      Wenn der Punkt auserhalb von MIN_DISTANCE_TO_NEXT liegt,
-             *      wird 0 zurückgegeben.
-             *
-             *      Wenn der Punkt eingefügt werden konnte, wird 1 zurückgegeben.
-             */
-            public int addValue(final Value value) {
-                if (value == null) throw  new IllegalArgumentException();
-
-                if (values.isEmpty()) {
-                    values.add(value);
-                    position = value.getValue_position();
-                    return 1;
-                }
-
-
-                //Aus Geschwindigkeitsgründen nur für erstes und letztes Element.
-
-                //Prüfung für das erste Element
-                float length = value.getValue_position().sub(values.get(0).getValue_position()).lengthSquared();
-
-                if (length >= MAX_DISTANCE_TO_NEXT*MAX_DISTANCE_TO_NEXT) {
-                    return -1;
-                } else if (length > MIN_DISTANCE_TO_NEXT*MIN_DISTANCE_TO_NEXT) {
-                    values.add(0, value);
-                    //TODO calculate position
-                    return 1;
-
-                } else {
-                    //Prüfung für das letze Element
-                    length = value.getValue_position().sub(values.get(values.size()-1).getValue_position()).lengthSquared();
-
-                    if (length >= MAX_DISTANCE_TO_NEXT*MAX_DISTANCE_TO_NEXT) {
-                        return -1;
-                    } else if (length > MIN_DISTANCE_TO_NEXT*MIN_DISTANCE_TO_NEXT) {
-                        values.add(value);
-                        //TODO calculate position
-                        return 1;
-                    } else {
-                        return 0;
-                    }
-                }
-            }
-
-            /**
-             * Liegen Datenpunkte von zwei Hindernissen in unmittlebarer Nähe, werden sie zu einem Hinderniss zusammen gefügt.
-             */
-            public void mergeObstacles() {
-
-            }
-
-            /**
-             * aktualisiert alle Values in Obstacle. Winkel wird neu berechnet und Länge.
-             * TODO geht das auch nebenläufig ???
-             */
-            public void updateObstacle(final Robot robot) {
-                /*
-                for(Value value : values) {
-                    value.setDistance(
-                            value.getValue_position().sub(robot.position()).length()
-                    );
-                    value.setDegree(
-                        //TODO
-                    );
-                }
-                */
-            }
-
-            /**
-             * Zeichnet das Obstacle in die Welt. //TODO Nur in draw-global möglich ?
-             */
-            public void drawObstacle() {
-                noStroke();
-                fill(255,50,0);
-
-                for (Value v : values) {
-                    Vec2 pos = v.getValue_position();
-                    ellipse(pos.x, pos.y, 2, 2);
-                }
-            }
-
-            /**
-             * Gibt eine Kopie der ArrayList zurück.
-             *
-             * @return Kopie der ArrayList
-             */
-            public ArrayList<Value> GetValues() {
-                return new ArrayList<>(values);
-            }
-
-        }
+        /**
+         * Enthält die Nodes, welche noch nicht bearbeitet wurden.
+         * ColsedList (Liste der bearbeiteten Nodes) wird indirekt implementiert.
+         */
+        private final PriorityQueue<Quad> openList;
 
         /**
          * Container für nützliche Daten über den Roboter aus dem letzten Frame
@@ -494,17 +417,14 @@ public class playground extends PApplet{
          */
         private final float EPS = 0.001f;
 
-        /**
-         * Deltasteer angle for tentacle movement
-         */
-        private final float TENTACLE_STEERING = 7*PI/4;
-
         MyRobot(Environment pEnvironment) {
             super(pEnvironment);
 
             sensors = new Sensor[5];
             lastRobos = new RingBuffer<>(LAST_ROBO_SIZE);
-
+            map = new Quad[MAP_WIDTH][MAP_HEIGHT];
+            fillMap();
+            openList = new PriorityQueue<>();
 
             //front
             sensors[0] = addSensor(0      , maxSensorRange);
@@ -520,6 +440,39 @@ public class playground extends PApplet{
             direction = ROBO_STATUS.NO_STEERING;
             status = ROBO_STATUS.FORWARD;
         }
+
+        /**
+         * Füllt die Map und initialisiert die einzelnen Quadranten
+         */
+        private void fillMap() {
+            Vec2 targetQuad = worldToQuadpoint(mEnvironment.target().position());
+
+            for (int width = 0; width < MAP_WIDTH; width ++) {
+                for (int height = 0; height < MAP_HEIGHT; height++) {
+                    map[width][height] = new Quad( targetQuad.sub(new Vec2(width, height)).length(), false);
+                }
+            }
+        }
+
+        /**
+         * Wandelt einen Punkt in map Koordinaten um, sprich den Quadrantenpunkt.
+         *
+         * @param point muss im Bereich zwischen width und height liegen
+         * @return Quadrantenpunkt.
+         */
+        private Vec2 worldToQuadpoint(Vec2 point) {
+            if (point == null) {
+                throw new IllegalArgumentException();
+            }
+            float x = Math.round(point.x) + MAP_WIDTH/2;
+            float y = (-1)*((point.y < 0 ? Math.round(point.y) : Math.round(point.y)) - MAP_HEIGHT/2);
+            if (x < 0 || x >= MAP_WIDTH || y < 0 || y >= MAP_HEIGHT) {
+                throw new IllegalArgumentException();
+            }
+            return new Vec2(x,y);
+        }
+
+
 
         public void update(float pDeltaTime) {
 
@@ -562,7 +515,7 @@ public class playground extends PApplet{
             boolean obstacleInView = sensors[0].triggered() || sensors[1].triggered()
                                   || sensors[2].triggered() || sensors[3].triggered()
                                   || sensors[4].triggered();
-
+/*
             if (obstacleInView) {
 
                 Sensor sensor;
@@ -593,11 +546,10 @@ public class playground extends PApplet{
 
             } else {
 
-                speed(maxForwardSpeed);
-                float steeringAngle = angleToGoal();
-                steer(steeringAngle);
-            }
-
+                //speed(maxForwardSpeed);
+                //float steeringAngle = angleToGoal();
+                //steer(steeringAngle);
+            } */
             /* steer robot and controll its motor */
             if (keyPressed) {
                 switch (key) {
@@ -624,6 +576,14 @@ public class playground extends PApplet{
             lastRobos.push(new LastRobo(steer(), speed(), position(), sensors));
             //Update States
             updateStates();
+
+        }
+
+        /**
+         * Führt A* aus. Target muss erreichbar sein.
+         */
+        public void aStar() {
+
 
         }
 
@@ -663,6 +623,7 @@ public class playground extends PApplet{
             }
 
             //Direction test
+            //TODO Sorgt in jetziger Logik für unerwünschtes Roboterverhalten
             if (countLeftDirection > countRightDirection) {
                 direction = ROBO_STATUS.LEFT_DIRECTION;
             } else if (countLeftDirection < countRightDirection) {
