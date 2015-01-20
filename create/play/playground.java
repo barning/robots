@@ -6,6 +6,7 @@ import processing.core.PGraphics;
 import de.hfkbremen.robots.challenge.*;
 
 import java.util.ArrayDeque;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.PriorityQueue;
 
@@ -174,6 +175,9 @@ public class playground extends PApplet{
          */
         class Quad {
 
+            private float mapX;
+            private float mapY;
+
             /**
              * Heuristic für A*. Speichert die Luftlinie und
              * verändert sich wenn eine blockierter Node in der Nähe ist.
@@ -210,20 +214,36 @@ public class playground extends PApplet{
              * @param h Luftlinie + Gefahrenzuschlag
              * @param obstacale Hinderniss ja/nein
              */
-            public Quad(final float h, final boolean obstacale) {
-                if (h < 0) throw new IllegalArgumentException();
+            public Quad(final float h, final boolean obstacale, final float mapX,final float mapY) {
+                if (h < 0 || mapX < 0 || mapY < 0) throw new IllegalArgumentException();
                 this.h = h;
+                this.mapX = mapX;
+                this.mapY = mapY;
                 this.obstacale = obstacale;
                 predecessor = null;
                 distToStart = 0;
-                f = 0;
+                f = Float.MAX_VALUE;
                 //Lege Farbe fest
                 color[0] = 0;
                 color[1] = 0;
                 color[2] = 0;
             }
 
+            public float getMapX() {
+                return mapX;
+            }
 
+            public void setMapX(float mapX) {
+                this.mapX = mapX;
+            }
+
+            public float getMapY() {
+                return mapY;
+            }
+
+            public void setMapY(float mapY) {
+                this.mapY = mapY;
+            }
 
             public float getF() {
                 return f;
@@ -299,6 +319,34 @@ public class playground extends PApplet{
          * ColsedList (Liste der bearbeiteten Nodes) wird indirekt implementiert.
          */
         private final PriorityQueue<Quad> openList;
+
+        /**
+         * Ziel Quadrant.
+         */
+        private Quad targetQuad;
+
+        /**
+         * Comparator für PriorityQueue
+         */
+        private final class QuadComparator implements Comparator<Quad> {
+
+            /**
+             * Der Quadrant mit dem kleinsten f Wert hat Priorität.
+             * Wenn {@code null} für eines der beiden Node-Objekte übergeben wird, fliegt eine {@link java.lang.IllegalArgumentException}
+             *
+             * @param quad1 Knoten, der mit Knoten quad2 verglichen werden soll.
+             * @param quad2 Knoten, der mit Knoten quad1 verglichen werden soll.
+             * @return f von quad1 == f von quad2 -> 0 wird zurückgegeben.
+             * f von quad1 < f von quad2 -> ein Wert echt kleiner 0 wird zurückgegeben
+             * f von quad1 > f von quad2 -> ein Wert echt größer 0 wird zurückgegeben
+             *
+             **/
+            @Override
+            public int compare(Quad quad1, Quad quad2) {
+                if (quad1 == null || quad2 == null) throw new IllegalArgumentException();
+                return (int) (quad1.getF() - quad2.getF());
+            }
+        }
 
         /**
          * Container für nützliche Daten über den Roboter aus dem letzten Frame
@@ -424,7 +472,7 @@ public class playground extends PApplet{
             lastRobos = new RingBuffer<>(LAST_ROBO_SIZE);
             map = new Quad[MAP_WIDTH][MAP_HEIGHT];
             fillMap();
-            openList = new PriorityQueue<>();
+            openList = new PriorityQueue<>(MAP_WIDTH*MAP_HEIGHT, new QuadComparator());
 
             //front
             sensors[0] = addSensor(0      , maxSensorRange);
@@ -445,13 +493,16 @@ public class playground extends PApplet{
          * Füllt die Map und initialisiert die einzelnen Quadranten
          */
         private void fillMap() {
-            Vec2 targetQuad = worldToQuadpoint(mEnvironment.target().position());
+            Vec2 targetQuadVec = worldToQuadpoint(mEnvironment.target().position());
 
             for (int width = 0; width < MAP_WIDTH; width ++) {
                 for (int height = 0; height < MAP_HEIGHT; height++) {
-                    map[width][height] = new Quad( targetQuad.sub(new Vec2(width, height)).length(), false);
+                    map[width][height] = new Quad( targetQuadVec.sub(new Vec2(width, height)).length(), false, width, height);
                 }
             }
+
+            targetQuad = map[(int) targetQuadVec.x][(int) targetQuadVec.y];
+            targetQuad.setF(0);
         }
 
         /**
@@ -471,8 +522,6 @@ public class playground extends PApplet{
             }
             return new Vec2(x,y);
         }
-
-
 
         public void update(float pDeltaTime) {
 
@@ -582,9 +631,88 @@ public class playground extends PApplet{
         /**
          * Führt A* aus. Target muss erreichbar sein.
          */
-        public void aStar() {
+        public Quad aStar() {
 
+            Vec2 startPoint = worldToQuadpoint(position());
+            Quad startQuad = map[(int) startPoint.x][(int) startPoint.y];
+            openList.offer(startQuad);
 
+            while(!openList.isEmpty()) {
+                Quad quad = openList.poll();
+
+                //Weg zum Ziel gefunden
+                if (quad == targetQuad) {
+                    return quad;
+                }
+
+                expandPath(quad);
+            }
+            //Wenn kein Ziel gefunden werden konnte
+            return null;
+        }
+
+        /**
+         * Erweitert die openList.
+         * @param quad
+         */
+        private void expandPath(final Quad quad) {
+            int mapX = (int) quad.getMapX();
+            int mapY = (int) quad.getMapY();
+
+            Quad successor;
+            if (validQuad(mapX, mapY--)) {
+                successor = map[mapX][mapY];
+                updateSucessor(successor, QUAD_SIZE, quad);
+
+            } else if (validQuad(mapX--, mapY)) {
+                successor = map[mapX][mapY];
+                updateSucessor(successor, (float) Math.sqrt(2), quad);
+
+            } else if (validQuad(mapX, mapY++)) {
+                successor = map[mapX][mapY];
+                updateSucessor(successor, QUAD_SIZE, quad);
+
+            } else if (validQuad(mapX, mapY++)) {
+                successor = map[mapX][mapY];
+                updateSucessor(successor, (float) Math.sqrt(2), quad);
+
+            } else if (validQuad(mapX++, mapY)) {
+                successor = map[mapX][mapY];
+                updateSucessor(successor, QUAD_SIZE, quad);
+
+            } else if (validQuad(mapX++, mapY)) {
+                successor = map[mapX][mapY];
+                updateSucessor(successor, (float) Math.sqrt(2), quad);
+
+            } else if (validQuad(mapX, mapY--)) {
+                successor = map[mapX][mapY];
+                updateSucessor(successor, QUAD_SIZE, quad);
+
+            } else if (validQuad(mapX, mapY--)) {
+                successor = map[mapX][mapY];
+                updateSucessor(successor, (float) Math.sqrt(2), quad);
+            }
+        }
+
+        private boolean validQuad(final int mapX, final int mapY) {
+            if (mapX < 0 || mapX >= MAP_WIDTH || mapY < 0 || mapY >= MAP_HEIGHT) {
+                return false;
+            }
+            return true;
+        }
+
+        private void updateSucessor(final Quad successor, final float costsInDist, final Quad possiblePredecessor) {
+            float tentativeDistToStart = successor.getDistToStart() + costsInDist;
+            float f = tentativeDistToStart + successor.getH();
+
+            if ((!openList.contains(successor) || tentativeDistToStart < successor.getDistToStart()) && successor.getF() > f) {
+                successor.setPredecessor(possiblePredecessor);
+                successor.setDistToStart(tentativeDistToStart);
+                successor.setF(f);
+                if (!openList.contains(successor)) {
+                    openList.offer(successor);
+                }
+            }
         }
 
         private void updateStates() {
