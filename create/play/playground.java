@@ -250,7 +250,7 @@ public class playground extends PApplet{
             }
 
             public void setF(float f) {
-                if (f <= 0) throw new IllegalArgumentException();
+                if (f < 0) throw new IllegalArgumentException();
                 this.f = f;
             }
 
@@ -326,6 +326,13 @@ public class playground extends PApplet{
          * Ziel Quadrant.
          */
         private Quad targetQuad;
+
+        private final float RADIUS = 10;
+
+        /**
+         * Wahl der Zahl: Florian
+         */
+        private final float EFFORT = 0.8f;
 
         /**
          * Comparator für PriorityQueue
@@ -740,10 +747,28 @@ public class playground extends PApplet{
         public void addObstacle(final Vec2 opstaclePosition) {
             if (opstaclePosition == null) throw new IllegalArgumentException();
             Vec2 obstacleMapPoint = worldToQuadpoint(opstaclePosition);
-            map[(int) obstacleMapPoint.x][(int) obstacleMapPoint.y].setObstacale(true);
+            Quad obstacle = map[(int) obstacleMapPoint.x][(int) obstacleMapPoint.y];
+            obstacle.setObstacale(true);
+            obstacle.getColor()[0] = 240;
 
-            //TODO Hier jetzt h werte verändern
+            int WEST  = (int) ((obstacleMapPoint.x - RADIUS) < 0 ? 0 : (obstacleMapPoint.x - RADIUS));
+            int NORTH = (int) ((obstacleMapPoint.y + RADIUS) < 0 ? 0 : (obstacleMapPoint.y + RADIUS));
+            int EAST  = (int) ((obstacleMapPoint.y + RADIUS) >= MAP_WIDTH  ? MAP_WIDTH  - 1 : (obstacleMapPoint.y + RADIUS));
+            int SOUTH = (int) ((obstacleMapPoint.y - RADIUS) >= MAP_HEIGHT ? MAP_HEIGHT - 1 : (obstacleMapPoint.y + RADIUS));
+
+            for (int i = WEST; i <= EAST; i++) {
+                for (int j = NORTH; j <= SOUTH; j++) {
+                    float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
+                    Quad quad = map[i][j];
+                    quad.setH(quad.getH() + (RADIUS-lenghtToOrigin) * EFFORT);
+                    quad.getColor()[0] = (RADIUS-lenghtToOrigin) * 255 + ;
+                    quad.getColor()[1] = ;
+                    quad.getColor()[2] = ;
+                }
+            }
         }
+
+
 
         /**
          * Upadate der einzelnen States wie stehen, forwärts fahren usw.
