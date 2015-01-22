@@ -179,8 +179,12 @@ public class playground extends PApplet{
             private float mapY;
 
             /**
-             * Heuristic für A*. Speichert die Luftlinie und
-             * verändert sich wenn eine blockierter Node in der Nähe ist.
+             * Speichert zusätzlich einen Betrag an Aufwand, der auf die Heuristik in A* addiert wird.
+             */
+            private float effort;
+
+            /**
+             * Heuristic für A*. Speichert die Luftlinie.
              */
             private float h;
 
@@ -223,6 +227,7 @@ public class playground extends PApplet{
                 predecessor = null;
                 distToStart = 0;
                 f = Float.MAX_VALUE;
+                effort = 0;
                 //Lege Farbe fest
                 color[0] = 0;
                 color[1] = 0;
@@ -295,6 +300,14 @@ public class playground extends PApplet{
             public float[] getColor() {
                 return color;
             }
+
+            public float getEffort() {
+                return effort;
+            }
+
+            public void setEffort(float effort) {
+                this.effort = effort;
+            }
         }
 
         /**
@@ -305,11 +318,11 @@ public class playground extends PApplet{
         /**
          * Breite der A* Map. Muss durch 2 ohne Rest teilbar sein.
          */
-        private final int MAP_WIDTH = (int) (1324/QUAD_SIZE);
+        private final int MAP_WIDTH = (int) (1024*2/QUAD_SIZE);
         /**
          * Höhe der A* Map. Muss durch 2 ohne Rest teilbar sein.
          */
-        private final int MAP_HEIGHT = (int) (1068/QUAD_SIZE);
+        private final int MAP_HEIGHT = (int) (768*2/QUAD_SIZE);
 
         /**
          * Raster für A*
@@ -327,7 +340,11 @@ public class playground extends PApplet{
          */
         private Quad targetQuad;
 
-        private final float RADIUS = 10;
+        private final float RADIUS = 20;
+        private final float DEBUG_SCREEN = 80;
+
+        private final float RED = 255;
+        private final float GREEN = 255;
 
         /**
          * Wahl der Zahl: Florian
@@ -507,10 +524,14 @@ public class playground extends PApplet{
             for (int width = 0; width < MAP_WIDTH; width ++) {
                 for (int height = 0; height < MAP_HEIGHT; height++) {
                     map[width][height] = new Quad( targetQuadVec.sub(new Vec2(width, height)).length(), false, width, height);
+                    map[width][height].getColor()[0] = RED;
+                    map[width][height].getColor()[1] = GREEN;
+                    map[width][height].getColor()[2] = 0;
                 }
             }
 
             targetQuad = map[(int) targetQuadVec.x][(int) targetQuadVec.y];
+            //TODO f anders berechnen
             targetQuad.setF(0);
         }
 
@@ -530,6 +551,22 @@ public class playground extends PApplet{
                 throw new IllegalArgumentException();
             }
             return new Vec2(x,y);
+        }
+
+        /**
+         * Wandelt einen Punkt in MapKoordinaten in Weltkoordinaten.
+         *
+         * @param point
+         * @return
+         */
+        private Vec2 quadToWorldpoint(Vec2 point) {
+            if (point == null) {
+                throw new IllegalArgumentException();
+            }
+
+            float x = point.x - MAP_WIDTH/2;
+            float y = (-1)*point.y + MAP_HEIGHT/2;
+            return new Vec2(x, y);
         }
 
         public void update(float pDeltaTime) {
@@ -573,41 +610,13 @@ public class playground extends PApplet{
             boolean obstacleInView = sensors[0].triggered() || sensors[1].triggered()
                                   || sensors[2].triggered() || sensors[3].triggered()
                                   || sensors[4].triggered();
-/*
-            if (obstacleInView) {
 
-                Sensor sensor;
-                switch (status) {
-                    case FORWARD:
-                        sensor = mostDisturbingFrontObstacle(sensors);
-
-                        if (sensor != null) {
-                            speed(maxForwardSpeed * sensor.obstacleDistance() * 0.2f);
-
-                            float steeringAngle = sensor.angle()%(2*PI);
-
-                            if (sensor.obstacleDistance() < 0.90f) {
-
-                                if (steeringAngle > -3*PI/2) {
-                                    steer(-maxSteeringAngle);
-                                } else {
-                                    steer(maxSteeringAngle);
-                                }
-                            }
-                        }
-
-                        break;
-                    case BACKWARD:
-                        sensor = mostDisturbingFrontObstacle(sensors);
-                        break;
+            for (Sensor sensor : sensors) {
+                if (sensor.triggered()) {
+                    addObstacle(sensor.obstacle());
                 }
+            }
 
-            } else {
-
-                //speed(maxForwardSpeed);
-                //float steeringAngle = angleToGoal();
-                //steer(steeringAngle);
-            } */
             /* steer robot and controll its motor */
             if (keyPressed) {
                 switch (key) {
@@ -726,7 +735,7 @@ public class playground extends PApplet{
          */
         private void updateSucessor(final Quad successor, final float costsInDist, final Quad possiblePredecessor) {
             float tentativeDistToStart = successor.getDistToStart() + costsInDist;
-            float f = tentativeDistToStart + successor.getH();
+            float f = tentativeDistToStart + successor.getH() + successor.getEffort();
 
             if ((!openList.contains(successor) || tentativeDistToStart < successor.getDistToStart())
                     && successor.getF() > f && !successor.isObstacale()) {
@@ -742,33 +751,65 @@ public class playground extends PApplet{
         /**
          * Fügt ein Obstacle in die Map ein. In einem Radius um ein Obstacle, wird die Heuristic der Quadranten verändert.
          *
+         * TODO der fehler liegt in Länge von Obstacle zu randpunkt der beeinflussten Quadranten ist größer als erwartet
+         *
          * @param opstaclePosition Position des Hindernisses
          */
         public void addObstacle(final Vec2 opstaclePosition) {
             if (opstaclePosition == null) throw new IllegalArgumentException();
+
             Vec2 obstacleMapPoint = worldToQuadpoint(opstaclePosition);
             Quad obstacle = map[(int) obstacleMapPoint.x][(int) obstacleMapPoint.y];
-            obstacle.setObstacale(true);
-            obstacle.getColor()[0] = 240;
 
-            int WEST  = (int) ((obstacleMapPoint.x - RADIUS) < 0 ? 0 : (obstacleMapPoint.x - RADIUS));
-            int NORTH = (int) ((obstacleMapPoint.y + RADIUS) < 0 ? 0 : (obstacleMapPoint.y + RADIUS));
-            int EAST  = (int) ((obstacleMapPoint.y + RADIUS) >= MAP_WIDTH  ? MAP_WIDTH  - 1 : (obstacleMapPoint.y + RADIUS));
-            int SOUTH = (int) ((obstacleMapPoint.y - RADIUS) >= MAP_HEIGHT ? MAP_HEIGHT - 1 : (obstacleMapPoint.y + RADIUS));
+            if (!obstacle.isObstacale()) {
+                obstacle.setObstacale(true);
+                obstacle.getColor()[0] = 255;
 
-            for (int i = WEST; i <= EAST; i++) {
-                for (int j = NORTH; j <= SOUTH; j++) {
-                    float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
-                    Quad quad = map[i][j];
-                    quad.setH(quad.getH() + (RADIUS-lenghtToOrigin) * EFFORT);
-                    quad.getColor()[0] = (RADIUS-lenghtToOrigin) * 255 + ;
-                    quad.getColor()[1] = ;
-                    quad.getColor()[2] = ;
+                int WEST  = (int) ((obstacleMapPoint.x - RADIUS) < 0 ? 0 : (obstacleMapPoint.x - RADIUS));
+                int NORTH = (int) ((obstacleMapPoint.y - RADIUS) < 0 ? 0 : (obstacleMapPoint.y - RADIUS));
+                int EAST  = (int) ((obstacleMapPoint.x + RADIUS) >= MAP_WIDTH  ? MAP_WIDTH  - 1 : (obstacleMapPoint.x + RADIUS));
+                int SOUTH = (int) ((obstacleMapPoint.y + RADIUS) >= MAP_HEIGHT ? MAP_HEIGHT - 1 : (obstacleMapPoint.y + RADIUS));
+
+                for (int i = WEST; i <= EAST; i++) {
+                    for (int j = NORTH; j <= SOUTH; j++) {
+                        float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
+                        Quad quad = map[i][j];
+                        if (lenghtToOrigin <= RADIUS) {
+                            float newEffort = quad.getEffort() + (RADIUS-lenghtToOrigin) * EFFORT;
+                            if (newEffort > quad.getEffort()) {
+                                quad.setEffort(newEffort);
+                                quad.getColor()[0] *= quad.getEffort()/RADIUS;
+                                quad.getColor()[1] *= 1 - quad.getEffort()/RADIUS;
+                            }
+                        }
+                    }
                 }
             }
         }
 
+        /**
+         * Zeichnet alle Obstacles ein und ihre Feldmanipulation.
+         */
+        public void drawMap() {
+            Vec2 roboMapPoint = worldToQuadpoint(position());
 
+            int WEST  = (int) ((roboMapPoint.x - DEBUG_SCREEN) < 0 ? 0 : (roboMapPoint.x - DEBUG_SCREEN));
+            int NORTH = (int) ((roboMapPoint.y - DEBUG_SCREEN) < 0 ? 0 : (roboMapPoint.y - DEBUG_SCREEN));
+            int EAST  = (int) ((roboMapPoint.x + DEBUG_SCREEN) >= MAP_WIDTH  ? MAP_WIDTH  - 1 : (roboMapPoint.x + DEBUG_SCREEN));
+            int SOUTH = (int) ((roboMapPoint.y + DEBUG_SCREEN) >= MAP_HEIGHT ? MAP_HEIGHT - 1 : (roboMapPoint.y + DEBUG_SCREEN));
+
+            noStroke();
+            for (int i = WEST; i < EAST; i++) {
+                for (int j = NORTH; j < SOUTH; j++) {
+                    Quad quad = map[i][j];
+                    if (quad.getEffort() > 0) {
+                        fill(quad.getColor()[0], quad.getColor()[1], quad.getColor()[2]);
+                        Vec2 positionInWorld = quadToWorldpoint(new Vec2(i, j));
+                        rect(positionInWorld.x, positionInWorld.y, QUAD_SIZE, QUAD_SIZE);
+                    }
+                }
+            }
+        }
 
         /**
          * Upadate der einzelnen States wie stehen, forwärts fahren usw.
@@ -793,7 +834,7 @@ public class playground extends PApplet{
             //Status test
             if (-EPS < middleVelocity && middleVelocity < EPS) {
                 status = ROBO_STATUS.STANDING;
-            } else if(middleVelocity <= -EPS) {
+            } else if(middleVelocity <= -EPS) { //TODO SO IST ES NOCH NICHT RICHTIG !!! speed gibt vorwärts Rückwärts an!!!
                 status = ROBO_STATUS.BACKWARD;
             } else {
                 status = ROBO_STATUS.FORWARD;
@@ -934,6 +975,7 @@ public class playground extends PApplet{
             Vec2 target = mEnvironment.target().position();
             line(target.x, target.y, position().x, position().y);
 
+            drawMap();
         }
     }
 
