@@ -340,6 +340,11 @@ public class playground extends PApplet{
          */
         private Quad targetQuad;
 
+        /**
+         * Ziel als Vec2
+         */
+        private final Vec2 targetPosition;
+
         private final float RADIUS = 20;
         private final float DEBUG_SCREEN = 80;
 
@@ -499,6 +504,7 @@ public class playground extends PApplet{
             map = new Quad[MAP_WIDTH][MAP_HEIGHT];
             fillMap();
             openList = new PriorityQueue<>(MAP_WIDTH*MAP_HEIGHT, new QuadComparator());
+            targetPosition = mEnvironment.target().position();
 
             //front
             sensors[0] = addSensor(0      , maxSensorRange);
@@ -524,9 +530,6 @@ public class playground extends PApplet{
             for (int width = 0; width < MAP_WIDTH; width ++) {
                 for (int height = 0; height < MAP_HEIGHT; height++) {
                     map[width][height] = new Quad( targetQuadVec.sub(new Vec2(width, height)).length(), false, width, height);
-                    map[width][height].getColor()[0] = RED;
-                    map[width][height].getColor()[1] = GREEN;
-                    map[width][height].getColor()[2] = 0;
                 }
             }
 
@@ -617,6 +620,8 @@ public class playground extends PApplet{
                 }
             }
 
+            aStar();
+
             /* steer robot and controll its motor */
             if (keyPressed) {
                 switch (key) {
@@ -678,35 +683,35 @@ public class playground extends PApplet{
             int mapY = (int) quad.getMapY();
 
             Quad successor;
-            if (validQuad(mapX, mapY--)) {
+            if (validQuad(mapX, --mapY)) {
                 successor = map[mapX][mapY];
                 updateSucessor(successor, QUAD_SIZE, quad);
 
-            } else if (validQuad(mapX--, mapY)) {
+            } else if (validQuad(--mapX, mapY)) {
                 successor = map[mapX][mapY];
                 updateSucessor(successor, (float) Math.sqrt(2), quad);
 
-            } else if (validQuad(mapX, mapY++)) {
+            } else if (validQuad(mapX, ++mapY)) {
                 successor = map[mapX][mapY];
                 updateSucessor(successor, QUAD_SIZE, quad);
 
-            } else if (validQuad(mapX, mapY++)) {
+            } else if (validQuad(mapX, ++mapY)) {
                 successor = map[mapX][mapY];
                 updateSucessor(successor, (float) Math.sqrt(2), quad);
 
-            } else if (validQuad(mapX++, mapY)) {
+            } else if (validQuad(++mapX, mapY)) {
                 successor = map[mapX][mapY];
                 updateSucessor(successor, QUAD_SIZE, quad);
 
-            } else if (validQuad(mapX++, mapY)) {
+            } else if (validQuad(++mapX, mapY)) {
                 successor = map[mapX][mapY];
                 updateSucessor(successor, (float) Math.sqrt(2), quad);
 
-            } else if (validQuad(mapX, mapY--)) {
+            } else if (validQuad(mapX, --mapY)) {
                 successor = map[mapX][mapY];
                 updateSucessor(successor, QUAD_SIZE, quad);
 
-            } else if (validQuad(mapX, mapY--)) {
+            } else if (validQuad(mapX, --mapY)) {
                 successor = map[mapX][mapY];
                 updateSucessor(successor, (float) Math.sqrt(2), quad);
             }
@@ -720,7 +725,7 @@ public class playground extends PApplet{
          * @return
          */
         private boolean validQuad(final int mapX, final int mapY) {
-            if (mapX < 0 || mapX >= MAP_WIDTH || mapY < 0 || mapY >= MAP_HEIGHT) {
+            if ((mapX < 0 || mapX >= MAP_WIDTH) || (mapY < 0 || mapY >= MAP_HEIGHT)) {
                 return false;
             }
             return true;
@@ -775,11 +780,11 @@ public class playground extends PApplet{
                         float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
                         Quad quad = map[i][j];
                         if (lenghtToOrigin <= RADIUS) {
-                            float newEffort = quad.getEffort() + (RADIUS-lenghtToOrigin) * EFFORT;
+                            float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
                             if (newEffort > quad.getEffort()) {
                                 quad.setEffort(newEffort);
-                                quad.getColor()[0] *= quad.getEffort()/RADIUS;
-                                quad.getColor()[1] *= 1 - quad.getEffort()/RADIUS;
+                                quad.getColor()[0] = RED/RADIUS*quad.getEffort();
+                                quad.getColor()[1] = GREEN - RED/RADIUS*quad.getEffort();
                             }
                         }
                     }
@@ -808,6 +813,21 @@ public class playground extends PApplet{
                         rect(positionInWorld.x, positionInWorld.y, QUAD_SIZE, QUAD_SIZE);
                     }
                 }
+            }
+        }
+
+        /**
+         * Zeichnet Strecke von A* beginnt mit dem Ziel
+         * @param pathEnd
+         */
+        public void draw_A_STAR(final Quad pathEnd) {
+            noStroke();
+            Quad quad = pathEnd;
+            while(quad != null) {
+                fill(244, 234, 125);
+                Vec2 positionInWorld = quadToWorldpoint(new Vec2(quad.getMapX(), quad.getMapY()));
+                rect(positionInWorld.x, positionInWorld.y, QUAD_SIZE, QUAD_SIZE);
+                quad = quad.getPredecessor();
             }
         }
 
@@ -976,6 +996,7 @@ public class playground extends PApplet{
             line(target.x, target.y, position().x, position().y);
 
             drawMap();
+            draw_A_STAR(targetQuad);
         }
     }
 
