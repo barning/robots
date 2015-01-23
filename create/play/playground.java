@@ -476,7 +476,7 @@ public class playground extends PApplet{
         /**
          * Id des WayPoints
          */
-        private final int wayPointID = 8;
+        private final int WAY_POINT_ID = 12;
 
         /**
          * Ziel als Vec2
@@ -583,7 +583,7 @@ public class playground extends PApplet{
         }
 
         /**
-         * RingBuffer für Roboter Daten. Hat feste Größe. NUR add verwenden!!!, wenn man hinzufügen möchte.
+         * RingBuffer für Roboter Daten. Hat feste Größe. NUR push verwenden!!!, wenn man hinzufügen möchte.
          */
         class RingBuffer <E> extends ArrayDeque<E>{
 
@@ -634,7 +634,12 @@ public class playground extends PApplet{
         /**
          * Die letzten drei Roboter aus den letzten drei Frames.
          */
-        private RingBuffer<LastRobo> lastRobos;
+        private final RingBuffer<LastRobo> lastRobos;
+
+        /**
+         * Die letzen Wegpunkte, die nicht null sind.
+         */
+        private final RingBuffer<Quad> wayPoints;
 
         /**
          * Epsilon für das isStanding-Prädikat
@@ -651,6 +656,7 @@ public class playground extends PApplet{
             targetPosition = mEnvironment.target().position();
             fillMap();
             wayPoint = null;
+            wayPoints = new RingBuffer<>(4);
 
             //front
             sensors[0] = addSensor(0      , maxSensorRange);
@@ -767,9 +773,31 @@ public class playground extends PApplet{
 
             Quad quad = aStar();
             wayPoint = generatePath(quad);
-            println(wayPoint);
+
+            //TODO wayPoints anders behandeln. Punkte von bis in generatePath einfügen und dann den ersten/mittlersten immer aus wählen.
             if (wayPoint != null) {
-                steer(angleToGoal(quadToWorldpoint(new Vec2(wayPoint.getMapX(), wayPoint.getMapY()))));
+                wayPoints.push(wayPoint);
+            }
+
+            float angleToGoal = 0;
+            if (wayPoint != null) {
+                angleToGoal = angleToGoal(quadToWorldpoint(new Vec2(wayPoint.getMapX(), wayPoint.getMapY())));
+                println("### AngleTOGOAL: " + angleToGoal);
+                steer(angleToGoal);
+            } else if (!wayPoints.isEmpty()) {
+                //TODO das ist noch quatsch. Lieber andere Punkte ausprobieren.
+                wayPoint = wayPoints.getFirst();
+                angleToGoal = angleToGoal(quadToWorldpoint(new Vec2(wayPoint.getMapX(), wayPoint.getMapY())));
+                steer(angleToGoal);
+            }
+
+            //TODO Wenn der Ziel punkt in Rückrichtung liegt, nach hintenfahren. Anderes berechnen!!!
+            if (angleToGoal < -PI/2 || angleToGoal > PI/2) {
+                speed(maxBackwardSpeed);
+                status = ROBO_STATUS.BACKWARD;
+            } else {
+                speed(maxForwardSpeed);
+                status = ROBO_STATUS.FORWARD;
             }
 
             if (obstacleInView) {
@@ -786,6 +814,11 @@ public class playground extends PApplet{
                         break;
                     case BACKWARD:
                         sensor = mostDisturbingFrontObstacle(sensors);
+
+                        if (sensor != null) {
+                            speed(maxBackwardSpeed * sensor.obstacleDistance() * 0.8f);
+                        }
+
                         break;
                 }
 
@@ -828,7 +861,7 @@ public class playground extends PApplet{
         private Quad generatePath(Quad quad) {
 
             while (quad != null) {
-                if (quad.getId() == wayPointID) {
+                if (quad.getId() == WAY_POINT_ID) {
                     return quad;
                 }
                 quad = quad.getPredecessor();
@@ -1069,6 +1102,8 @@ public class playground extends PApplet{
             float middleVelocity = 0f;
             int countLeftDirection = 0;
             int countRightDirection = 0;
+            int countForward = 0;
+            int countBackward = 0;
 
             Iterator<LastRobo> iter = lastRobos.iterator();
             LastRobo lastRobo = iter.hasNext() ? iter.next() : null;
@@ -1081,13 +1116,9 @@ public class playground extends PApplet{
             }
             middleVelocity /= lastRobos.size();
 
-            //Status test
+            //Is Stending
             if (-EPS < middleVelocity && middleVelocity < EPS) {
                 status = ROBO_STATUS.STANDING;
-            } else if(middleVelocity <= -EPS) { //TODO SO IST ES NOCH NICHT RICHTIG !!! speed gibt vorwärts Rückwärts an!!!
-                status = ROBO_STATUS.BACKWARD;
-            } else {
-                status = ROBO_STATUS.FORWARD;
             }
 
 
@@ -1097,10 +1128,22 @@ public class playground extends PApplet{
                 } else {
                     countRightDirection++;
                 }
+                if (robo.getSpeed() < 0) {
+                    countBackward++;
+                } else {
+                    countForward++;
+                }
+            }
+
+            //Status test
+            if (countBackward > countForward) {
+                status = ROBO_STATUS.BACKWARD;
+            } else if (countBackward < countForward) {
+                status = ROBO_STATUS.FORWARD;
             }
 
             //Direction test
-            //TODO Sorgt in jetziger Logik für unerwünschtes Roboterverhalten
+            //TODO stört den Sensorkopf, bei schnellem Richtungswechsel
             if (countLeftDirection > countRightDirection) {
                 direction = ROBO_STATUS.LEFT_DIRECTION;
             } else if (countLeftDirection < countRightDirection) {
