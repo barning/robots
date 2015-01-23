@@ -318,6 +318,11 @@ public class playground extends PApplet{
             private float[] color = new float[3];
 
             /**
+             * Zähler für den Knoten, ob es der erste … n-te Knoten ist.
+             */
+            private int id;
+
+            /**
              * Erzeugt einen neuen Node.
              * @param h Luftlinie + Gefahrenzuschlag
              * @param obstacale Hinderniss ja/nein
@@ -330,12 +335,21 @@ public class playground extends PApplet{
                 this.obstacale = obstacale;
                 predecessor = null;
                 distToStart = 0;
+                id = 0;
                 f = Float.MAX_VALUE;
                 effort = 0;
                 //Lege Farbe fest
                 color[0] = 0;
                 color[1] = 0;
                 color[2] = 0;
+            }
+
+            public int getId() {
+                return id;
+            }
+
+            public void setId(int id) {
+                this.id = id;
             }
 
             public float getMapX() {
@@ -440,12 +454,6 @@ public class playground extends PApplet{
         private final int MAP_HEIGHT = (int) (1024/ QUAD_SIZE_MIN);
 
         /**
-         * Diese Daten geben an, welche Punkte in der Welt alles transliert werden in MapKoordinaten
-         */
-        private final int WORLD_WIDTH = 1024;
-        private final int WORLD_HEIGHT = 1024;
-
-        /**
          * Raster für A*
          */
         private final Quad[][] map;
@@ -455,21 +463,20 @@ public class playground extends PApplet{
          * ColsedList (Liste der bearbeiteten Nodes) wird indirekt implementiert.
          */
         private final PriorityQueue<Quad> openList;
-
         /**
          * Ziel Quadrant.
          */
         private Quad targetQuad;
 
         /**
-         * Zeichen quad
+         * Fahrziel
          */
-        private Quad quad;
+        private Quad wayPoint;
 
         /**
-         * Zum malen
+         * Id des WayPoints
          */
-        private ArrayList<Quad> quads = new ArrayList<>();
+        private final int wayPointID = 8;
 
         /**
          * Ziel als Vec2
@@ -485,7 +492,7 @@ public class playground extends PApplet{
         /**
          * Wahl der Zahl: Florian
          */
-        private final float EFFORT = 0.8f;
+        private final float EFFORT = 2.8f;
 
         /**
          * Comparator für PriorityQueue
@@ -643,6 +650,7 @@ public class playground extends PApplet{
             openList = new PriorityQueue<>(MAP_WIDTH*MAP_HEIGHT, new QuadComparator());
             targetPosition = mEnvironment.target().position();
             fillMap();
+            wayPoint = null;
 
             //front
             sensors[0] = addSensor(0      , maxSensorRange);
@@ -711,7 +719,7 @@ public class playground extends PApplet{
 
         public void update(float pDeltaTime) {
 
-            mAngle += pDeltaTime * 2;
+            mAngle += pDeltaTime * 20;
 
             switch (direction) {
                 case LEFT_DIRECTION:
@@ -757,10 +765,31 @@ public class playground extends PApplet{
                 }
             }
 
-            if (aStar() != null) {
-                println("FOUND!!!!");
+            Quad quad = aStar();
+            wayPoint = generatePath(quad);
+            println(wayPoint);
+            if (wayPoint != null) {
+                steer(angleToGoal(quadToWorldpoint(new Vec2(wayPoint.getMapX(), wayPoint.getMapY()))));
             }
-            println("Fertig");
+
+            if (obstacleInView) {
+
+                Sensor sensor;
+                switch (status) {
+                    case FORWARD:
+                        sensor = mostDisturbingFrontObstacle(sensors);
+
+                        if (sensor != null) {
+                            speed(maxForwardSpeed * sensor.obstacleDistance() * 0.8f);
+                        }
+
+                        break;
+                    case BACKWARD:
+                        sensor = mostDisturbingFrontObstacle(sensors);
+                        break;
+                }
+
+            }
 
             /* steer robot and controll its motor */
             if (keyPressed) {
@@ -792,28 +821,51 @@ public class playground extends PApplet{
         }
 
         /**
+         * Erzeugt ein Route.
+         *
+         * @param quad
+         */
+        private Quad generatePath(Quad quad) {
+
+            while (quad != null) {
+                if (quad.getId() == wayPointID) {
+                    return quad;
+                }
+                quad = quad.getPredecessor();
+            }
+            return quad;
+        }
+
+        /**
+         * Setzt Daten zurück, die von A* verändert wurden.
+         */
+        private void clearMap() {
+            for (int i = 0; i < MAP_WIDTH; i++) {
+                for (int j = 0; j < MAP_HEIGHT; j++) {
+                    map[i][j].setF(MAX_FLOAT);
+                    map[i][j].setPredecessor(null);
+                    map[i][j].setDistToStart(0);
+                    map[i][j].setId(0);
+                }
+            }
+        }
+
+        /**
          * Führt A* aus. Target muss erreichbar sein.
          *
          * TODO Wände und Bälle unterscheiden. Besser in Update
          */
         public Quad aStar() {
 
-
-            for (int i = 0; i < MAP_WIDTH; i++) {
-                for (int j = 0; j < MAP_HEIGHT; j++) {
-                    if (map[i][j] == targetQuad) {
-                        map[i][j].setH(0);
-                    } else {
-                        map[i][j].setF(MAX_FLOAT);
-                    }
-                }
-            }
-
+            clearMap();
+            openList.clear();
 
             Vec2 startPoint = worldToQuadpoint(position());
             Quad startQuad = map[(int) startPoint.x][(int) startPoint.y];
             startQuad.setF(0);
             openList.offer(startQuad);
+
+            int id = 0;
 
             while(!openList.isEmpty()) {
                 Quad quad = openList.poll();
@@ -825,7 +877,7 @@ public class playground extends PApplet{
                 }
 
                 //println("noch in Arbeit");
-                expandPath(quad);
+                expandPath(quad, ++id);
             }
             //Wenn kein Ziel gefunden werden konnte
             return null;
@@ -835,49 +887,49 @@ public class playground extends PApplet{
          * Erweitert die openList.
          * @param quad
          */
-        private void expandPath(final Quad quad) {
+        private void expandPath(final Quad quad, final int id) {
             int mapX = (int) quad.getMapX();
             int mapY = (int) quad.getMapY();
 
             Quad successor;
             if (validQuad(mapX, ++mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MIN, quad);
+                updateSucessor(successor, QUAD_SIZE_MIN, quad, id);
 
             }
             if (validQuad(--mapX, mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MAX, quad);
+                updateSucessor(successor, QUAD_SIZE_MAX, quad, id);
 
             }
             if (validQuad(mapX, --mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MIN, quad);
+                updateSucessor(successor, QUAD_SIZE_MIN, quad, id);
 
             }
             if (validQuad(mapX, --mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MAX, quad);
+                updateSucessor(successor, QUAD_SIZE_MAX, quad, id);
 
             }
             if (validQuad(++mapX, mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MIN, quad);
+                updateSucessor(successor, QUAD_SIZE_MIN, quad, id);
 
             }
             if (validQuad(++mapX, mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MAX, quad);
+                updateSucessor(successor, QUAD_SIZE_MAX, quad, id);
 
             }
             if (validQuad(mapX, ++mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MIN, quad);
+                updateSucessor(successor, QUAD_SIZE_MIN, quad, id);
 
             }
             if (validQuad(mapX, ++mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MAX, quad);
+                updateSucessor(successor, QUAD_SIZE_MAX, quad, id);
             }
         }
 
@@ -902,7 +954,7 @@ public class playground extends PApplet{
          * @param costsInDist
          * @param possiblePredecessor
          */
-        private void updateSucessor(final Quad successor, final float costsInDist, final Quad possiblePredecessor) {
+        private void updateSucessor(final Quad successor, final float costsInDist, final Quad possiblePredecessor, final int id) {
             float tentativeDistToStart = successor.getDistToStart() + costsInDist;
             float f = tentativeDistToStart + successor.getH() + successor.getEffort();
 
@@ -911,6 +963,7 @@ public class playground extends PApplet{
                 successor.setPredecessor(possiblePredecessor);
                 successor.setDistToStart(tentativeDistToStart);
                 successor.setF(f);
+                successor.setId(id);
                 if (!openList.contains(successor)) {
                     openList.offer(successor);
                 }
@@ -947,8 +1000,8 @@ public class playground extends PApplet{
                             float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
                             if (newEffort > quad.getEffort()) {
                                 quad.setEffort(newEffort);
-                                quad.getColor()[0] = RED/RADIUS*quad.getEffort();
-                                quad.getColor()[1] = GREEN - RED/RADIUS*quad.getEffort();
+                                quad.getColor()[0] = RED/(RADIUS * EFFORT) *quad.getEffort();
+                                quad.getColor()[1] = GREEN - RED/(RADIUS * EFFORT) *quad.getEffort();
                             }
                         }
                     }
@@ -1002,15 +1055,10 @@ public class playground extends PApplet{
         public void draw_A_STAR(final Quad pathStart) {
             noStroke();
             Quad quad = pathStart;
-            int countPath = 0;
             while(quad != null) {
-
-                //println("draw…");
                 drawQuad(quad, 0, 0, 255);
-                countPath++;
                 quad = quad.getPredecessor();
             }
-            println(countPath);
         }
 
         /**
@@ -1106,7 +1154,7 @@ public class playground extends PApplet{
             return 0;
         }
 
-        @Deprecated
+
         private Sensor mostDisturbingFrontObstacle(final Sensor[] sensors) {
             if (sensors == null) throw  new IllegalArgumentException();
 
@@ -1137,7 +1185,7 @@ public class playground extends PApplet{
             return mostImportantSensor;
         }
 
-        @Deprecated
+
         private Sensor mostDisturbingBackObstacle(final Sensor[] sensors) {
 
             Sensor mostImportantSensor = null;
@@ -1222,8 +1270,9 @@ public class playground extends PApplet{
 
             drawMap();
             draw_A_STAR(targetQuad);
-
-
+            if (wayPoint != null) {
+                drawQuad(wayPoint, 200, 0, 100);
+            }
         }
     }
 
