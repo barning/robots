@@ -5,29 +5,133 @@ import processing.core.PApplet;
 import processing.core.PGraphics;
 import de.hfkbremen.robots.challenge.*;
 
-import java.util.ArrayDeque;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.PriorityQueue;
+import java.util.*;
 
 
 public class playground extends PApplet{
 
     Environment mEnvironment;
     MyRobot mRobot;
-    float mScale = 5;
+    float mScale = 5f;
     Trace mTrace;
     OSD mOSD;
 
     public void setup() {
         size(1024, 768);
-        mEnvironment = new Environment(this, Environment.MAP_RANDOM_WALLS);
+
+        mEnvironment = new Environment(this);
+        EnvironmentMap mEnvironmentMap = new MyEnvironmentMap(this, mEnvironment);
+        mEnvironment.map(mEnvironmentMap);
+
+        //mEnvironment = new Environment(this, Environment.MAP_RANDOM_WALLS);
 
         mRobot = new MyRobot(mEnvironment);
         mEnvironment.add(mRobot);
+        mRobot.position(-400, -350);
 
         mTrace = new Trace(mRobot);
         mOSD = new OSD(this, mEnvironment);
+    }
+
+    class MyEnvironmentMap extends EnvironmentMapEditor {
+        MyEnvironmentMap(PApplet pParent, Environment pEnvironment) {
+            super(pParent, pEnvironment);
+
+            pEnvironment.target().position().x = 300;
+            pEnvironment.target().position().y = 220;
+        }
+
+        @Override
+        public void fillCornersAndBalls() {
+            addCorner(0.11328125f, 0.1953125f);
+            addCorner(0.11328125f, 0.203125f);
+            addCorner(0.021484375f, 0.54296875f);
+            addCorner(0.037109375f, 0.8671875f);
+            addCorner(0.037109375f, 0.9707031f);
+            addCorner(0.140625f, 0.9863281f);
+            addCorner(0.12109375f, 0.8925781f);
+            addCorner(0.099609375f, 0.7675781f);
+            addCorner(0.13085938f, 0.42578125f);
+            addCorner(0.203125f, 0.24414062f);
+            addCorner(0.20703125f, 0.21875f);
+            addCorner(0.29101562f, 0.21679688f);
+            addCorner(0.25585938f, 0.33007812f);
+            addCorner(0.22851562f, 0.48242188f);
+            addCorner(0.19726562f, 0.6972656f);
+            addCorner(0.21289062f, 0.8203125f);
+            addCorner(0.22851562f, 0.9199219f);
+            addCorner(0.34765625f, 0.9511719f);
+            addCorner(0.39648438f, 0.921875f);
+            addCorner(0.35742188f, 0.890625f);
+            addCorner(0.29492188f, 0.8417969f);
+            addCorner(0.30664062f, 0.7832031f);
+            addCorner(0.36914062f, 0.71484375f);
+            addCorner(0.42578125f, 0.8066406f);
+            addCorner(0.4921875f, 0.890625f);
+            addCorner(0.5957031f, 0.921875f);
+            addCorner(0.6503906f, 0.875f);
+            addCorner(0.5488281f, 0.8105469f);
+            addCorner(0.45703125f, 0.609375f);
+            addCorner(0.3515625f, 0.6074219f);
+            addCorner(0.27539062f, 0.6582031f);
+            addCorner(0.33984375f, 0.4765625f);
+            addCorner(0.35546875f, 0.34960938f);
+            addCorner(0.48828125f, 0.47851562f);
+            addCorner(0.48632812f, 0.4765625f);
+            addCorner(0.5097656f, 0.50390625f);
+            addCorner(0.6484375f, 0.5800781f);
+            addCorner(0.8535156f, 0.7050781f);
+            addCorner(0.859375f, 0.5097656f);
+            addCorner(0.8105469f, 0.34179688f);
+            addCorner(0.8613281f, 0.16015625f);
+            addCorner(0.68359375f, 0.1796875f);
+            addCorner(0.734375f, 0.36523438f);
+            addCorner(0.7988281f, 0.5234375f);
+            addCorner(0.7324219f, 0.5488281f);
+            addCorner(0.6347656f, 0.5019531f);
+            addCorner(0.5410156f, 0.38671875f);
+            addCorner(0.44335938f, 0.33789062f);
+            addCorner(0.40625f, 0.26367188f);
+            addCorner(0.39648438f, 0.16992188f);
+            addCorner(0.5859375f, 0.27539062f);
+            addCorner(0.640625f, 0.38085938f);
+            addCorner(0.6875f, 0.34765625f);
+            addCorner(0.6484375f, 0.2578125f);
+            addCorner(0.58203125f, 0.13085938f);
+            addCorner(0.7207031f, 0.08984375f);
+            addCorner(0.6269531f, 0.041015625f);
+            addCorner(0.25390625f, 0.060546875f);
+            addCorner(0.025390625f, 0.04296875f);
+            addCorner(0.12890625f, 0.1015625f);
+            addCorner(0.2890625f, 0.103515625f);
+            addCorner(0.33789062f, 0.14257812f);
+            addCorner(0.25390625f, 0.15820312f);
+            addCorner(0.16601562f, 0.15625f);
+            addCorner(0.11328125f, 0.19921875f);
+            addBall(0.15039062f, 0.21875f);
+            addBall(0.30664062f, 0.19726562f);
+            addBall(0.39648438f, 0.111328125f);
+            addBall(0.484375f, 0.14648438f);
+            addBall(0.50390625f, 0.10546875f);
+            addBall(0.7578125f, 0.25f);
+            addBall(0.76953125f, 0.31835938f);
+            addBall(0.81640625f, 0.6191406f);
+            addBall(0.5019531f, 0.4296875f);
+            addBall(0.5488281f, 0.4609375f);
+            addBall(0.53515625f, 0.4296875f);
+            addBall(0.35351562f, 0.29492188f);
+            addBall(0.30273438f, 0.34765625f);
+            addBall(0.29101562f, 0.46484375f);
+            addBall(0.2734375f, 0.41796875f);
+            addBall(0.3125f, 0.41210938f);
+            addBall(0.23828125f, 0.66015625f);
+            addBall(0.26953125f, 0.7421875f);
+            addBall(0.3984375f, 0.6777344f);
+            addBall(0.47265625f, 0.7890625f);
+            addBall(0.0703125f, 0.8691406f);
+            addBall(0.080078125f, 0.51171875f);
+            addBall(0.13085938f, 0.30664062f);
+        }
     }
 
     public void draw() {
@@ -308,21 +412,38 @@ public class playground extends PApplet{
             public void setEffort(float effort) {
                 this.effort = effort;
             }
+
+            @Override
+            public String toString() {
+                return "Quad{" +
+                        "f=" + f +
+                        '}';
+            }
         }
 
         /**
          * Gibt die größe eines Rasterfelds an. Gibt auch implizit an, welche abstände zwischen den Knoten existieren.
          */
-        private final float QUAD_SIZE = 1;
+        private final float QUAD_SIZE_MIN = 1;
+        /**
+         * Diagonale Länge
+         */
+        private final float QUAD_SIZE_MAX = sqrt(QUAD_SIZE_MIN*QUAD_SIZE_MIN + QUAD_SIZE_MIN*QUAD_SIZE_MIN);
 
         /**
          * Breite der A* Map. Muss durch 2 ohne Rest teilbar sein.
          */
-        private final int MAP_WIDTH = (int) (1024*2/QUAD_SIZE);
+        private final int MAP_WIDTH = (int) (1024/ QUAD_SIZE_MIN);
         /**
          * Höhe der A* Map. Muss durch 2 ohne Rest teilbar sein.
          */
-        private final int MAP_HEIGHT = (int) (768*2/QUAD_SIZE);
+        private final int MAP_HEIGHT = (int) (1024/ QUAD_SIZE_MIN);
+
+        /**
+         * Diese Daten geben an, welche Punkte in der Welt alles transliert werden in MapKoordinaten
+         */
+        private final int WORLD_WIDTH = 1024;
+        private final int WORLD_HEIGHT = 1024;
 
         /**
          * Raster für A*
@@ -339,6 +460,16 @@ public class playground extends PApplet{
          * Ziel Quadrant.
          */
         private Quad targetQuad;
+
+        /**
+         * Zeichen quad
+         */
+        private Quad quad;
+
+        /**
+         * Zum malen
+         */
+        private ArrayList<Quad> quads = new ArrayList<>();
 
         /**
          * Ziel als Vec2
@@ -375,7 +506,14 @@ public class playground extends PApplet{
             @Override
             public int compare(Quad quad1, Quad quad2) {
                 if (quad1 == null || quad2 == null) throw new IllegalArgumentException();
-                return (int) (quad1.getF() - quad2.getF());
+                float result = quad1.getF() - quad2.getF();
+                if (result < 0) {
+                    return -1;
+                } else if (result > 0) {
+                    return 1;
+                } else {
+                    return 0;
+                }
             }
         }
 
@@ -502,9 +640,9 @@ public class playground extends PApplet{
             sensors = new Sensor[5];
             lastRobos = new RingBuffer<>(LAST_ROBO_SIZE);
             map = new Quad[MAP_WIDTH][MAP_HEIGHT];
-            fillMap();
             openList = new PriorityQueue<>(MAP_WIDTH*MAP_HEIGHT, new QuadComparator());
             targetPosition = mEnvironment.target().position();
+            fillMap();
 
             //front
             sensors[0] = addSensor(0      , maxSensorRange);
@@ -525,7 +663,7 @@ public class playground extends PApplet{
          * Füllt die Map und initialisiert die einzelnen Quadranten
          */
         private void fillMap() {
-            Vec2 targetQuadVec = worldToQuadpoint(mEnvironment.target().position());
+            Vec2 targetQuadVec = worldToQuadpoint(targetPosition);
 
             for (int width = 0; width < MAP_WIDTH; width ++) {
                 for (int height = 0; height < MAP_HEIGHT; height++) {
@@ -534,8 +672,7 @@ public class playground extends PApplet{
             }
 
             targetQuad = map[(int) targetQuadVec.x][(int) targetQuadVec.y];
-            //TODO f anders berechnen
-            targetQuad.setF(0);
+            targetQuad.setH(0);
         }
 
         /**
@@ -620,7 +757,10 @@ public class playground extends PApplet{
                 }
             }
 
-            aStar();
+            if (aStar() != null) {
+                println("FOUND!!!!");
+            }
+            println("Fertig");
 
             /* steer robot and controll its motor */
             if (keyPressed) {
@@ -653,21 +793,38 @@ public class playground extends PApplet{
 
         /**
          * Führt A* aus. Target muss erreichbar sein.
+         *
+         * TODO Wände und Bälle unterscheiden. Besser in Update
          */
         public Quad aStar() {
 
+
+            for (int i = 0; i < MAP_WIDTH; i++) {
+                for (int j = 0; j < MAP_HEIGHT; j++) {
+                    if (map[i][j] == targetQuad) {
+                        map[i][j].setH(0);
+                    } else {
+                        map[i][j].setF(MAX_FLOAT);
+                    }
+                }
+            }
+
+
             Vec2 startPoint = worldToQuadpoint(position());
             Quad startQuad = map[(int) startPoint.x][(int) startPoint.y];
+            startQuad.setF(0);
             openList.offer(startQuad);
 
             while(!openList.isEmpty()) {
                 Quad quad = openList.poll();
+
 
                 //Weg zum Ziel gefunden
                 if (quad == targetQuad) {
                     return quad;
                 }
 
+                //println("noch in Arbeit");
                 expandPath(quad);
             }
             //Wenn kein Ziel gefunden werden konnte
@@ -683,37 +840,44 @@ public class playground extends PApplet{
             int mapY = (int) quad.getMapY();
 
             Quad successor;
+            if (validQuad(mapX, ++mapY)) {
+                successor = map[mapX][mapY];
+                updateSucessor(successor, QUAD_SIZE_MIN, quad);
+
+            }
+            if (validQuad(--mapX, mapY)) {
+                successor = map[mapX][mapY];
+                updateSucessor(successor, QUAD_SIZE_MAX, quad);
+
+            }
             if (validQuad(mapX, --mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE, quad);
+                updateSucessor(successor, QUAD_SIZE_MIN, quad);
 
-            } else if (validQuad(--mapX, mapY)) {
+            }
+            if (validQuad(mapX, --mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, (float) Math.sqrt(2), quad);
+                updateSucessor(successor, QUAD_SIZE_MAX, quad);
 
-            } else if (validQuad(mapX, ++mapY)) {
+            }
+            if (validQuad(++mapX, mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE, quad);
+                updateSucessor(successor, QUAD_SIZE_MIN, quad);
 
-            } else if (validQuad(mapX, ++mapY)) {
+            }
+            if (validQuad(++mapX, mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, (float) Math.sqrt(2), quad);
+                updateSucessor(successor, QUAD_SIZE_MAX, quad);
 
-            } else if (validQuad(++mapX, mapY)) {
+            }
+            if (validQuad(mapX, ++mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE, quad);
+                updateSucessor(successor, QUAD_SIZE_MIN, quad);
 
-            } else if (validQuad(++mapX, mapY)) {
+            }
+            if (validQuad(mapX, ++mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, (float) Math.sqrt(2), quad);
-
-            } else if (validQuad(mapX, --mapY)) {
-                successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE, quad);
-
-            } else if (validQuad(mapX, --mapY)) {
-                successor = map[mapX][mapY];
-                updateSucessor(successor, (float) Math.sqrt(2), quad);
+                updateSucessor(successor, QUAD_SIZE_MAX, quad);
             }
         }
 
@@ -757,7 +921,7 @@ public class playground extends PApplet{
          * Fügt ein Obstacle in die Map ein. In einem Radius um ein Obstacle, wird die Heuristic der Quadranten verändert.
          *
          * TODO der fehler liegt in Länge von Obstacle zu randpunkt der beeinflussten Quadranten ist größer als erwartet
-         *
+         * TODO Bälle müssen auch eingefügt werden, werden aber aus der Struktur irgendwann gelöscht.
          * @param opstaclePosition Position des Hindernisses
          */
         public void addObstacle(final Vec2 opstaclePosition) {
@@ -810,25 +974,43 @@ public class playground extends PApplet{
                     if (quad.getEffort() > 0) {
                         fill(quad.getColor()[0], quad.getColor()[1], quad.getColor()[2]);
                         Vec2 positionInWorld = quadToWorldpoint(new Vec2(i, j));
-                        rect(positionInWorld.x, positionInWorld.y, QUAD_SIZE, QUAD_SIZE);
+                        rect(positionInWorld.x, positionInWorld.y, QUAD_SIZE_MIN, QUAD_SIZE_MIN);
                     }
                 }
             }
         }
 
         /**
-         * Zeichnet Strecke von A* beginnt mit dem Ziel
-         * @param pathEnd
+         * Zeichent ein spezielles Quad.
+         *
+         * Werte müssen valide sein.
+         * @param quad
+         * @param r
+         * @param g
+         * @param b
          */
-        public void draw_A_STAR(final Quad pathEnd) {
+        public void drawQuad(final Quad quad, final float r, final float g, final float b){
+            fill(r, g, b);
+            Vec2 positionInWorld = quadToWorldpoint(new Vec2(quad.getMapX(), quad.getMapY()));
+            rect(positionInWorld.x, positionInWorld.y, QUAD_SIZE_MIN, QUAD_SIZE_MIN);
+        }
+
+        /**
+         * Zeichnet Strecke von A* beginnt mit dem Ziel
+         * @param pathStart
+         */
+        public void draw_A_STAR(final Quad pathStart) {
             noStroke();
-            Quad quad = pathEnd;
+            Quad quad = pathStart;
+            int countPath = 0;
             while(quad != null) {
-                fill(244, 234, 125);
-                Vec2 positionInWorld = quadToWorldpoint(new Vec2(quad.getMapX(), quad.getMapY()));
-                rect(positionInWorld.x, positionInWorld.y, QUAD_SIZE, QUAD_SIZE);
+
+                //println("draw…");
+                drawQuad(quad, 0, 0, 255);
+                countPath++;
                 quad = quad.getPredecessor();
             }
+            println(countPath);
         }
 
         /**
@@ -879,6 +1061,49 @@ public class playground extends PApplet{
                 direction = ROBO_STATUS.NO_STEERING;
             }
 
+        }
+
+        /**
+         * returns the angle to the target. if the target is not defined this method
+         * always returns 0.
+         *
+         * Für einen beliebigen Punkt.
+         */
+        public float angleToGoal(final Vec2 goal) {
+            if (goal != null) {
+                Vec2 target = goal;
+                Vec2 pos = position();
+                Vec2 relTarget = target.sub(pos);
+                float relAngle = (float) Math.atan2(relTarget.y, relTarget.x);
+                float ownAngle = clamp(body().getAngle());
+                float goalAngle = clamp(relAngle - ownAngle - PApplet.PI / 2);
+                return goalAngle;
+            }
+            return 0;
+        }
+
+        private float clamp(float goalAngle) {
+            while (goalAngle > Math.PI) {
+                goalAngle -= 2 * Math.PI;
+            }
+            while (goalAngle < -Math.PI) {
+                goalAngle += 2 * Math.PI;
+            }
+            return goalAngle;
+        }
+
+        /**
+         * Distanz zu einem beliebigen Punkt
+         *
+         */
+        public float distanceToGoal(final Vec2 goal) {
+            if (goal != null) {
+                Vec2 target = goal;
+                Vec2 pos = position();
+                Vec2 relTarget = target.sub(pos);
+                return relTarget.length();
+            }
+            return 0;
         }
 
         @Deprecated
@@ -992,11 +1217,13 @@ public class playground extends PApplet{
         public void draw_global(PGraphics g) {
             // draw in the environment s coordinate space
             stroke(30);
-            Vec2 target = mEnvironment.target().position();
+            Vec2 target = targetPosition;
             line(target.x, target.y, position().x, position().y);
 
             drawMap();
             draw_A_STAR(targetQuad);
+
+
         }
     }
 
