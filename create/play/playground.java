@@ -639,7 +639,7 @@ public class playground extends PApplet{
         /**
          * Die letzen Wegpunkte, die nicht null sind.
          */
-        private final RingBuffer<Quad> wayPoints;
+        private final ArrayDeque<Quad> wayPoints;
 
         /**
          * Epsilon für das isStanding-Prädikat
@@ -656,8 +656,9 @@ public class playground extends PApplet{
             targetPosition = mEnvironment.target().position();
             fillMap();
             wayPoint = null;
-            wayPoints = new RingBuffer<>(4);
+            wayPoints = new ArrayDeque<>();
 
+            /*
             //front
             sensors[0] = addSensor(0      , maxSensorRange);
             //left
@@ -668,6 +669,21 @@ public class playground extends PApplet{
             sensors[3] = addSensor(PI     , maxSensorRange);
             //tentacle
             sensors[4] = addSensor(0      , maxSensorRange);
+
+            */
+
+            //front
+            sensors[0] = addSensor(-PI/6      , maxSensorRange);
+            //left
+            sensors[1] = addSensor(PI/6 , maxSensorRange);
+
+            //right
+            sensors[2] = addSensor(-PI/2.5f   , maxSensorRange);
+            //back
+            sensors[3] = addSensor(PI/2.5f     , maxSensorRange);
+            //tentacle
+            sensors[4] = addSensor(0      , maxSensorRange);
+
 
             direction = ROBO_STATUS.NO_STEERING;
             status = ROBO_STATUS.FORWARD;
@@ -727,6 +743,14 @@ public class playground extends PApplet{
 
             mAngle += pDeltaTime * 20;
 
+            /*
+            sensors[0].angle(-(mAngle));
+            sensors[1].angle(-(mAngle + PI));
+            sensors[2].angle(-(mAngle + PI / 2));
+            sensors[3].angle(-(mAngle + 3 * PI / 2));
+            */
+
+            /*
             switch (direction) {
                 case LEFT_DIRECTION:
                     sensors[0].angle(-(mAngle));
@@ -747,15 +771,28 @@ public class playground extends PApplet{
                     sensors[3].angle(-(mAngle + 3 * PI / 2));
                     break;
             }
+            */
 
             switch (status) {
                 case FORWARD:
+                    sensors[0].angle(sin(mAngle * 0.3f) -PI/6);
+                    sensors[1].angle(sin(-mAngle * 0.3f) + PI/6);
+                    sensors[2].angle(sin(-mAngle * 0.3f) -PI/2.5f);
+                    sensors[3].angle(sin(mAngle * 0.3f) + PI/2.5f);
                     sensors[4].angle(sin(mAngle) * 1/2 - steer());
                     break;
                 case BACKWARD:
+                    sensors[0].angle(sin(mAngle * 0.3f) -5*PI/6);
+                    sensors[1].angle(sin(-mAngle * 0.3f) + 5*PI/6);
+                    sensors[2].angle(sin(-mAngle * 0.3f) -PI/2f);
+                    sensors[3].angle(sin(mAngle * 0.3f) + PI/2f);
                     sensors[4].angle(sin(mAngle) * 1/2 - steer() + PI);
                     break;
                 default:
+                    sensors[0].angle(sin(mAngle * 0.3f) -PI/6);
+                    sensors[1].angle(sin(-mAngle * 0.3f) + PI/6);
+                    sensors[2].angle(sin(-mAngle * 0.3f) -PI/2.5f);
+                    sensors[3].angle(sin(mAngle * 0.3f) + PI/2.5f);
                     sensors[4].angle(sin(mAngle) * 1/2);
                     break;
             }
@@ -772,34 +809,23 @@ public class playground extends PApplet{
             }
 
             Quad quad = aStar();
-            wayPoint = generatePath(quad);
+            int maxWaxPoints = generatePath(quad);
 
-            //TODO wayPoints anders behandeln. Punkte von bis in generatePath einfügen und dann den ersten/mittlersten immer aus wählen.
-            if (wayPoint != null) {
-                wayPoints.push(wayPoint);
+            float angleToGoal;
+            if (!wayPoints.isEmpty()) {
+                for (Quad q : wayPoints) {
+                    if (q.getId() == maxWaxPoints-WAY_POINT_ID) {
+                        wayPoint = q;
+                        angleToGoal = angleToGoal(quadToWorldpoint(new Vec2(wayPoint.getMapX(), wayPoint.getMapY())));
+                        steer(angleToGoal);
+                        break;
+                    }
+                }
             }
 
-            float angleToGoal = 0;
-            if (wayPoint != null) {
-                angleToGoal = angleToGoal(quadToWorldpoint(new Vec2(wayPoint.getMapX(), wayPoint.getMapY())));
-                println("### AngleTOGOAL: " + angleToGoal);
-                steer(angleToGoal);
-            } else if (!wayPoints.isEmpty()) {
-                //TODO das ist noch quatsch. Lieber andere Punkte ausprobieren.
-                wayPoint = wayPoints.getFirst();
-                angleToGoal = angleToGoal(quadToWorldpoint(new Vec2(wayPoint.getMapX(), wayPoint.getMapY())));
-                steer(angleToGoal);
-            }
+            speed(maxForwardSpeed);
 
-            //TODO Wenn der Ziel punkt in Rückrichtung liegt, nach hintenfahren. Anderes berechnen!!!
-            if (angleToGoal < -PI/2 || angleToGoal > PI/2) {
-                speed(maxBackwardSpeed);
-                status = ROBO_STATUS.BACKWARD;
-            } else {
-                speed(maxForwardSpeed);
-                status = ROBO_STATUS.FORWARD;
-            }
-
+            /*
             if (obstacleInView) {
 
                 Sensor sensor;
@@ -823,7 +849,7 @@ public class playground extends PApplet{
                 }
 
             }
-
+ */
             /* steer robot and controll its motor */
             if (keyPressed) {
                 switch (key) {
@@ -858,15 +884,16 @@ public class playground extends PApplet{
          *
          * @param quad
          */
-        private Quad generatePath(Quad quad) {
+        private int generatePath(Quad quad) {
+            wayPoints.clear();
 
+            int id = 0;
             while (quad != null) {
-                if (quad.getId() == WAY_POINT_ID) {
-                    return quad;
-                }
+                quad.setId(id++);
+                wayPoints.push(quad);
                 quad = quad.getPredecessor();
             }
-            return quad;
+            return id;
         }
 
         /**
@@ -898,8 +925,6 @@ public class playground extends PApplet{
             startQuad.setF(0);
             openList.offer(startQuad);
 
-            int id = 0;
-
             while(!openList.isEmpty()) {
                 Quad quad = openList.poll();
 
@@ -910,7 +935,7 @@ public class playground extends PApplet{
                 }
 
                 //println("noch in Arbeit");
-                expandPath(quad, ++id);
+                expandPath(quad);
             }
             //Wenn kein Ziel gefunden werden konnte
             return null;
@@ -920,49 +945,49 @@ public class playground extends PApplet{
          * Erweitert die openList.
          * @param quad
          */
-        private void expandPath(final Quad quad, final int id) {
+        private void expandPath(final Quad quad) {
             int mapX = (int) quad.getMapX();
             int mapY = (int) quad.getMapY();
 
             Quad successor;
             if (validQuad(mapX, ++mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MIN, quad, id);
+                updateSucessor(successor, QUAD_SIZE_MIN, quad);
 
             }
             if (validQuad(--mapX, mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MAX, quad, id);
+                updateSucessor(successor, QUAD_SIZE_MAX, quad);
 
             }
             if (validQuad(mapX, --mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MIN, quad, id);
+                updateSucessor(successor, QUAD_SIZE_MIN, quad);
 
             }
             if (validQuad(mapX, --mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MAX, quad, id);
+                updateSucessor(successor, QUAD_SIZE_MAX, quad);
 
             }
             if (validQuad(++mapX, mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MIN, quad, id);
+                updateSucessor(successor, QUAD_SIZE_MIN, quad);
 
             }
             if (validQuad(++mapX, mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MAX, quad, id);
+                updateSucessor(successor, QUAD_SIZE_MAX, quad);
 
             }
             if (validQuad(mapX, ++mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MIN, quad, id);
+                updateSucessor(successor, QUAD_SIZE_MIN, quad);
 
             }
             if (validQuad(mapX, ++mapY)) {
                 successor = map[mapX][mapY];
-                updateSucessor(successor, QUAD_SIZE_MAX, quad, id);
+                updateSucessor(successor, QUAD_SIZE_MAX, quad);
             }
         }
 
@@ -987,7 +1012,7 @@ public class playground extends PApplet{
          * @param costsInDist
          * @param possiblePredecessor
          */
-        private void updateSucessor(final Quad successor, final float costsInDist, final Quad possiblePredecessor, final int id) {
+        private void updateSucessor(final Quad successor, final float costsInDist, final Quad possiblePredecessor) {
             float tentativeDistToStart = successor.getDistToStart() + costsInDist;
             float f = tentativeDistToStart + successor.getH() + successor.getEffort();
 
@@ -996,7 +1021,6 @@ public class playground extends PApplet{
                 successor.setPredecessor(possiblePredecessor);
                 successor.setDistToStart(tentativeDistToStart);
                 successor.setF(f);
-                successor.setId(id);
                 if (!openList.contains(successor)) {
                     openList.offer(successor);
                 }
