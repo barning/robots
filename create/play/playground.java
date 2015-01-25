@@ -1,9 +1,11 @@
 package play;
 
+import de.hfkbremen.robots.challenge.Sensor;
 import org.jbox2d.common.Vec2;
 import processing.core.PApplet;
 import processing.core.PGraphics;
 import de.hfkbremen.robots.challenge.*;
+import sun.management.*;
 
 import java.util.*;
 
@@ -148,113 +150,6 @@ public class playground extends PApplet{
     }
 
     /**
-     * TODO nur nehmen, wenn es keinen anderen Weg mehr gibt
-     *
-     * Unsere Wahrnehmungsfelder als Enum.
-     * Jeder Enum-Eintrag steht für ein Feld, in dem potentielle Hindernisse liegen können.
-     *
-     */
-    public enum DetectionField {
-
-        /*
-            Hier sind die äußeren Felder aufgelistet
-        */
-        OUTER_CIRCLE_0(0, PI/6, 1, 0.7f),           OUTER_CIRCLE_1(PI/6, PI/3, 1, 0.7f),
-        OUTER_CIRCLE_2(PI/3, PI/2, 1, 0.7f),        OUTER_CIRCLE_3(PI/2, 2*PI/3, 1, 0.7f),
-        OUTER_CIRCLE_4(2*PI/3, PI, 1, 0.7f),        OUTER_CIRCLE_5(PI, 4*PI/3, 1, 0.7f),
-        OUTER_CIRCLE_6(4*PI/3, 3*PI/2, 1, 0.7f),    OUTER_CIRCLE_7(3*PI/3, 11*PI/6, 1, 0.7f),
-        OUTER_CIRCLE_8(11*PI/6, 2*PI, 1, 0.7f),
-
-        /*
-            Hier sind die mittleren Felder aufgelistet
-        */
-        MIDDLE_CIRCLE_0(0, PI/6, 0.7f, 0.4f),          MIDDLE_CIRCLE_1(PI/6, PI/3, 0.7f, 0.4f),
-        MIDDLE_CIRCLE_2(PI/3, PI/2, 0.7f, 0.4f),       MIDDLE_CIRCLE_3(PI/2, 2*PI/3, 0.7f, 0.4f),
-        MIDDLE_CIRCLE_4(2*PI/3, PI, 0.7f, 0.4f),       MIDDLE_CIRCLE_5(PI, 4*PI/3, 0.7f, 0.4f),
-        MIDDLE_CIRCLE_6(4*PI/3, 3*PI/2, 0.7f, 0.4f),   MIDDLE_CIRCLE_7(3*PI/3, 11*PI/6, 0.7f, 0.4f),
-        MIDDLE_CIRCLE_8(11*PI/6, 2*PI, 0.7f, 0.4f),
-
-        /*
-            Hier sind die inneren Felder aufgelistet
-        */
-        INNER_CIRCLE_0(0, PI/6, 0.4f, 0),           INNER_CIRCLE_1(PI/6, PI/3, 0.4f, 0),
-        INNER_CIRCLE_2(PI/3, PI/2, 0.4f, 0),        INNER_CIRCLE_3(PI/2, 2*PI/3, 0.4f, 0),
-        INNER_CIRCLE_4(2*PI/3, PI, 0.4f, 0),        INNER_CIRCLE_5(PI, 4*PI/3, 0.4f, 0),
-        INNER_CIRCLE_6(4*PI/3, 3*PI/2, 0.4f, 0),    INNER_CIRCLE_7(3*PI/3, 11*PI/6, 0.4f, 0),
-        INNER_CIRCLE_8(11*PI/6, 2*PI, 0.4f, 0);
-
-        /**
-         * Im Bereich 0 bis 2PI
-         */
-        private final float startRad;
-
-        /**
-         * Im Bereich 0 bis 2PI
-         */
-
-        private final float endRad;
-
-        /**
-         * Im Bereich 1 bis 0
-         */
-        private final float startLength;
-
-        /**
-         * Im Bereich 1 bis 0
-         */
-        private final float endLength;
-
-        /* Der GetterBlock */
-
-        public float getStartRad() {
-            return startRad;
-        }
-
-        public float getEndRad() {
-            return endRad;
-        }
-
-        public float getStartLength() {
-            return startLength;
-        }
-
-        public float getEndLength() {
-            return endLength;
-        }
-
-        /**
-         * Konstruktor für ein DetectionField
-         *
-         * @param startRad zwischen 0 und 2PI
-         * @param endRad zwischen 0 und 2PI
-         * @param startLength zwischen 1 und 0
-         * @param endLength zwischen 1 und 0
-         */
-        DetectionField(final float startRad, final float endRad, final float startLength, final float endLength) {
-            this.startRad = startRad;
-            this.endRad = endRad;
-            this.startLength = startLength;
-            this.endLength = endLength;
-        }
-
-        /**
-         * Liefert für Sensorwinkle und Hindernisslänge das passende Wahrnehmungsfeld wieder.
-         *
-         * @param rad Sensorwinkle
-         * @param length Hindernisslänge
-         * @return Wahrnehmungsfeld. Wenn kein passendes Feld gefunden werden kann, wir {@code null} zurückgegeben.
-         */
-        public static DetectionField selectField(final float rad, final float length) {
-            for (DetectionField f  : DetectionField.values()) {
-                if (rad >= f.startRad && rad <= f.endRad && length >= f.startLength && length <= f.endLength) {
-                    return f;
-                }
-            }
-            return null;
-        }
-    }
-
-    /**
      * Satus des Robots. Der Roboter kann jeweils nur FORWARD oder BACKWARD einnehmen und LEFT_DIRECTION oder RIGHT_DIRECTION
      */
     public enum ROBO_STATUS {
@@ -303,6 +198,19 @@ public class playground extends PApplet{
             private boolean obstacale;
 
             /**
+             * Bestimmt das verhalten. -1 ist Grundwert.
+             */
+            private int obstacleTyp;
+
+            public int getObstacleTyp() {
+                return obstacleTyp;
+            }
+
+            public void setObstacleTyp(int obstacleTyp) {
+                this.obstacleTyp = obstacleTyp;
+            }
+
+            /**
              * Vorgängerknoten.
              */
             private Quad predecessor;
@@ -335,6 +243,8 @@ public class playground extends PApplet{
                 this.obstacale = obstacale;
                 predecessor = null;
                 distToStart = 0;
+                //Nichts ist -1
+                obstacleTyp = -1;
                 id = 0;
                 f = Float.MAX_VALUE;
                 effort = 0;
@@ -476,7 +386,7 @@ public class playground extends PApplet{
         /**
          * Id des WayPoints
          */
-        private final int WAY_POINT_ID = 12;
+        private final int MAX_WAY_POINT_ID = 24;
 
         /**
          * Ziel als Vec2
@@ -493,6 +403,8 @@ public class playground extends PApplet{
          * Wahl der Zahl: Florian
          */
         private final float EFFORT = 2.8f;
+
+        private final float EFFORT_REDUCTION = 0.5f;
 
         /**
          * Comparator für PriorityQueue
@@ -804,17 +716,20 @@ public class playground extends PApplet{
 
             for (Sensor sensor : sensors) {
                 if (sensor.triggered()) {
-                    addObstacle(sensor.obstacle());
+                    addObstacle(sensor.obstacle(), sensor.obstacleType());
                 }
             }
 
             Quad quad = aStar();
             int maxWaxPoints = generatePath(quad);
+            int delta = Math.round(MAX_WAY_POINT_ID /
+                    (status == ROBO_STATUS.BACKWARD ? maxBackwardSpeed : maxForwardSpeed) * speed());
+            int wayPointId = maxWaxPoints - delta;
 
             float angleToGoal;
             if (!wayPoints.isEmpty()) {
                 for (Quad q : wayPoints) {
-                    if (q.getId() == maxWaxPoints-WAY_POINT_ID) {
+                    if (q.getId() == wayPointId) {
                         wayPoint = q;
                         angleToGoal = angleToGoal(quadToWorldpoint(new Vec2(wayPoint.getMapX(), wayPoint.getMapY())));
                         steer(angleToGoal);
@@ -825,7 +740,7 @@ public class playground extends PApplet{
 
             speed(maxForwardSpeed);
 
-            /*
+/*
             if (obstacleInView) {
 
                 Sensor sensor;
@@ -848,8 +763,8 @@ public class playground extends PApplet{
                         break;
                 }
 
-            }
- */
+            }*/
+
             /* steer robot and controll its motor */
             if (keyPressed) {
                 switch (key) {
@@ -902,10 +817,30 @@ public class playground extends PApplet{
         private void clearMap() {
             for (int i = 0; i < MAP_WIDTH; i++) {
                 for (int j = 0; j < MAP_HEIGHT; j++) {
-                    map[i][j].setF(MAX_FLOAT);
-                    map[i][j].setPredecessor(null);
-                    map[i][j].setDistToStart(0);
-                    map[i][j].setId(0);
+                    Quad quad = map[i][j];
+                    quad.setF(MAX_FLOAT);
+                    quad.setPredecessor(null);
+                    quad.setDistToStart(0);
+                    quad.setId(0);
+
+                    switch (quad.getObstacleTyp()) {
+                        case Sensor.BALL :
+                            quad.setEffort(quad.getEffort() - EFFORT_REDUCTION * 0.6f);
+                            if (quad.getEffort() < 0) {
+                                quad.setEffort(0);
+                                quad.setObstacleTyp(-1);
+                            }
+                            break;
+                        case Sensor.UNKNOWN :
+                            quad.setEffort(quad.getEffort() - EFFORT_REDUCTION * 0.9f);
+                            if (quad.getEffort() < 0) {
+                                quad.setEffort(0);
+                                quad.setObstacleTyp(-1);
+                            }
+                            break;
+                        default:
+                            break;
+                    }
                 }
             }
         }
@@ -1030,40 +965,135 @@ public class playground extends PApplet{
         /**
          * Fügt ein Obstacle in die Map ein. In einem Radius um ein Obstacle, wird die Heuristic der Quadranten verändert.
          *
-         * TODO der fehler liegt in Länge von Obstacle zu randpunkt der beeinflussten Quadranten ist größer als erwartet
-         * TODO Bälle müssen auch eingefügt werden, werden aber aus der Struktur irgendwann gelöscht.
          * @param opstaclePosition Position des Hindernisses
          */
-        public void addObstacle(final Vec2 opstaclePosition) {
+        public void addObstacle(final Vec2 opstaclePosition, final int obstacleTyp) {
             if (opstaclePosition == null) throw new IllegalArgumentException();
 
             Vec2 obstacleMapPoint = worldToQuadpoint(opstaclePosition);
             Quad obstacle = map[(int) obstacleMapPoint.x][(int) obstacleMapPoint.y];
 
-            if (!obstacle.isObstacale()) {
-                obstacle.setObstacale(true);
-                obstacle.getColor()[0] = 255;
+            int WEST  = (int) ((obstacleMapPoint.x - RADIUS) < 0 ? 0 : (obstacleMapPoint.x - RADIUS));
+            int NORTH = (int) ((obstacleMapPoint.y - RADIUS) < 0 ? 0 : (obstacleMapPoint.y - RADIUS));
+            int EAST  = (int) ((obstacleMapPoint.x + RADIUS) >= MAP_WIDTH  ? MAP_WIDTH  - 1 : (obstacleMapPoint.x + RADIUS));
+            int SOUTH = (int) ((obstacleMapPoint.y + RADIUS) >= MAP_HEIGHT ? MAP_HEIGHT - 1 : (obstacleMapPoint.y + RADIUS));
 
-                int WEST  = (int) ((obstacleMapPoint.x - RADIUS) < 0 ? 0 : (obstacleMapPoint.x - RADIUS));
-                int NORTH = (int) ((obstacleMapPoint.y - RADIUS) < 0 ? 0 : (obstacleMapPoint.y - RADIUS));
-                int EAST  = (int) ((obstacleMapPoint.x + RADIUS) >= MAP_WIDTH  ? MAP_WIDTH  - 1 : (obstacleMapPoint.x + RADIUS));
-                int SOUTH = (int) ((obstacleMapPoint.y + RADIUS) >= MAP_HEIGHT ? MAP_HEIGHT - 1 : (obstacleMapPoint.y + RADIUS));
+            //Aufwandsberechnung für Hindernisse:
+            //Wände werden NICHT durch andere Hindernisse überlagert
+            //Unknown überlagert Ball
 
-                for (int i = WEST; i <= EAST; i++) {
-                    for (int j = NORTH; j <= SOUTH; j++) {
-                        float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
-                        Quad quad = map[i][j];
-                        if (lenghtToOrigin <= RADIUS) {
-                            float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
-                            if (newEffort > quad.getEffort()) {
-                                quad.setEffort(newEffort);
-                                quad.getColor()[0] = RED/(RADIUS * EFFORT) *quad.getEffort();
-                                quad.getColor()[1] = GREEN - RED/(RADIUS * EFFORT) *quad.getEffort();
+            switch (obstacle.getObstacleTyp()) {
+                case Sensor.UNKNOWN:
+                    //Quad aktualisieren, da neu gefunden
+                    obstacle.setEffort(RADIUS*EFFORT);
+
+                    for (int i = WEST; i <= EAST; i++) {
+                        for (int j = NORTH; j <= SOUTH; j++) {
+                            float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
+                            Quad quad = map[i][j];
+                            if (lenghtToOrigin <= RADIUS && quad.getObstacleTyp() != Sensor.WALL) {
+                                //Felder werden makiert
+                                quad.setObstacleTyp(Sensor.UNKNOWN);
+
+                                float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
+                                if (newEffort > quad.getEffort()) {
+                                    quad.setEffort(newEffort);
+                                }
                             }
                         }
                     }
-                }
+                    break;
+                case Sensor.BALL:
+                    //Quad aktualisieren, da neu gefunden
+                    obstacle.setEffort(RADIUS*EFFORT);
+
+                    for (int i = WEST; i <= EAST; i++) {
+                        for (int j = NORTH; j <= SOUTH; j++) {
+                            float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
+                            Quad quad = map[i][j];
+                            if (lenghtToOrigin <= RADIUS && quad.getObstacleTyp() != Sensor.WALL && quad.getObstacleTyp() != Sensor.UNKNOWN) {
+                                //Felder werden makiert
+                                quad.setObstacleTyp(Sensor.BALL);
+
+                                float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
+                                if (newEffort > quad.getEffort()) {
+                                    quad.setEffort(newEffort);
+                                }
+                            }
+                        }
+                    }
+                    break;
+                case Sensor.WALL:
+                    //Walls sind beständig und verändern sich nicht. Daher nicht neu berechnen
+                    break;
+                default:
+                    //Quad wurde noch nicht makiert.
+                    switch (obstacleTyp) {
+                        case Sensor.UNKNOWN:
+                            obstacle.setObstacleTyp(Sensor.UNKNOWN);
+                            obstacle.setEffort(RADIUS*EFFORT);
+
+                            for (int i = WEST; i <= EAST; i++) {
+                                for (int j = NORTH; j <= SOUTH; j++) {
+                                    float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
+                                    Quad quad = map[i][j];
+                                    if (lenghtToOrigin <= RADIUS && quad.getObstacleTyp() != Sensor.WALL) {
+                                        //Felder werden makiert
+                                        quad.setObstacleTyp(Sensor.UNKNOWN);
+
+                                        float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
+                                        if (newEffort > quad.getEffort()) {
+                                            quad.setEffort(newEffort);
+                                        }
+                                    }
+                                }
+                            }
+                            break;
+                        case Sensor.WALL:
+                            obstacle.setObstacleTyp(Sensor.WALL);
+                            obstacle.setEffort(RADIUS*EFFORT);
+                            obstacle.setObstacale(true);
+
+                            for (int i = WEST; i <= EAST; i++) {
+                                for (int j = NORTH; j <= SOUTH; j++) {
+                                    float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
+                                    Quad quad = map[i][j];
+                                    if (lenghtToOrigin <= RADIUS) {
+                                        //Felder werden makiert
+                                        quad.setObstacleTyp(Sensor.WALL);
+
+                                        float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
+                                        if (newEffort > quad.getEffort()) {
+                                            quad.setEffort(newEffort);
+                                        }
+                                    }
+                                }
+                            }
+                            break;
+                        case Sensor.BALL:
+                            obstacle.setObstacleTyp(Sensor.BALL);
+                            obstacle.setEffort(RADIUS*EFFORT);
+
+                            for (int i = WEST; i <= EAST; i++) {
+                                for (int j = NORTH; j <= SOUTH; j++) {
+                                    float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
+                                    Quad quad = map[i][j];
+                                    if (lenghtToOrigin <= RADIUS && quad.getObstacleTyp() != Sensor.WALL && quad.getObstacleTyp() != Sensor.UNKNOWN) {
+                                        //Felder werden makiert
+                                        quad.setObstacleTyp(Sensor.BALL);
+
+                                        float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
+                                        if (newEffort > quad.getEffort()) {
+                                            quad.setEffort(newEffort);
+                                        }
+                                    }
+                                }
+                            }
+                            break;
+                    }
+                    break;
             }
+
         }
 
         /**
@@ -1082,9 +1112,14 @@ public class playground extends PApplet{
                 for (int j = NORTH; j < SOUTH; j++) {
                     Quad quad = map[i][j];
                     if (quad.getEffort() > 0) {
+                        quad.getColor()[0] = RED/(RADIUS * EFFORT) *quad.getEffort();
+                        quad.getColor()[1] = GREEN - RED/(RADIUS * EFFORT) *quad.getEffort();
                         fill(quad.getColor()[0], quad.getColor()[1], quad.getColor()[2]);
                         Vec2 positionInWorld = quadToWorldpoint(new Vec2(i, j));
                         rect(positionInWorld.x, positionInWorld.y, QUAD_SIZE_MIN, QUAD_SIZE_MIN);
+                    }
+                    if (quad.isObstacale()) {
+                        drawQuad(quad, 0, 0, 0);
                     }
                 }
             }
