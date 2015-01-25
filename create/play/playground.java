@@ -21,16 +21,16 @@ public class playground extends PApplet{
     public void setup() {
         size(1024, 768);
 
-        /*
+
         mEnvironment = new Environment(this);
         EnvironmentMap mEnvironmentMap = new MyEnvironmentMap(this, mEnvironment);
         mEnvironment.map(mEnvironmentMap);
-        */
-        mEnvironment = new Environment(this, Environment.MAP_RANDOM_WALLS);
+
+        //mEnvironment = new Environment(this, Environment.MAP_RANDOM_WALLS);
 
         mRobot = new MyRobot(mEnvironment);
         mEnvironment.add(mRobot);
-        //mRobot.position(-400, -350);
+        mRobot.position(-400, -350);
 
         mTrace = new Trace(mRobot);
         mOSD = new OSD(this, mEnvironment);
@@ -640,7 +640,8 @@ public class playground extends PApplet{
 
             for (Sensor sensor : sensors) {
                 if (sensor.triggered()) {
-                    addObstacle(sensor.obstacle(), Sensor.WALL);//sensor.obstacleType()); Weil Walls nicht walls sind … TODO
+                    addObstacle(sensor.obstacle(), sensor.obstacleType()); //TODO Walls in eigener Map sind nicht immer Walls…
+                    // TODO Läuft perfekt wenn diese so wäre
                 }
             }
 
