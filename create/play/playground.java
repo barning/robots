@@ -26,7 +26,7 @@ public class playground extends PApplet{
         EnvironmentMap mEnvironmentMap = new MyEnvironmentMap(this, mEnvironment);
         mEnvironment.map(mEnvironmentMap);
         */
-        mEnvironment = new Environment(this, Environment.MAP_BAELLEBAD);
+        mEnvironment = new Environment(this, Environment.MAP_RANDOM_WALLS);
 
         mRobot = new MyRobot(mEnvironment);
         mEnvironment.add(mRobot);
@@ -444,54 +444,22 @@ public class playground extends PApplet{
 
             private float steer;
 
-            private float speed;
-
             public float getSteer() {
                 return steer;
-            }
-
-            public float getSpeed() {
-                return speed;
             }
 
             public Vec2 getPosition() {
                 return lastPosition;
             }
 
-            public float[][] getLastSensorData() {
-                return lastSensorData;
-            }
-
             private Vec2 lastPosition;
 
-            private float[][] lastSensorData = new float[5][4];
-
-            public LastRobo(final float steer, final float speed, final Vec2 lastPosition, final Sensor[] sensors) {
-                if (lastPosition == null || sensors == null) {
+            public LastRobo(final float steer, final Vec2 lastPosition) {
+                if (lastPosition == null) {
                     throw new IllegalArgumentException();
                 }
                 this.steer = steer;
-                this.speed = speed;
                 this.lastPosition = new Vec2 (lastPosition);
-
-                for (int i = 0; i < 5; i++) {
-                    for (int j = 0; j < 4; j++) {
-                        switch (j) {
-                            case 0:
-                                lastSensorData[i][j] = sensors[i].angle();
-                                break;
-                            case 1:
-                                lastSensorData[i][j] = sensors[i].obstacleDistance();
-                                break;
-                            case 2:
-                                lastSensorData[i][j] = sensors[i].obstacle().x;
-                                break;
-                            case 3:
-                                lastSensorData[i][j] = sensors[i].obstacle().y;
-                                break;
-                        }
-                    }
-                }
             }
         }
 
@@ -529,10 +497,12 @@ public class playground extends PApplet{
         private ROBO_STATUS direction;
 
         /**
-         * Speichert den Bewegungsstatus FORWARD, BACKWARD, STANDING.
+         * Speichert den Bewegungsstatus FORWARD, BACKWARD.
          * Andere Stati sind nicht zulässig.
          */
         private ROBO_STATUS status;
+
+        private boolean statnding;
 
         /**
          * Sensoren des Roboters
@@ -570,36 +540,19 @@ public class playground extends PApplet{
             fillMap();
             wayPoint = null;
             wayPoints = new ArrayDeque<>();
+            timer = 0;
 
-            /*
-            //front
-            sensors[0] = addSensor(0      , maxSensorRange);
-            //left
-            sensors[1] = addSensor(- PI/2 , maxSensorRange);
-            //right
-            sensors[2] = addSensor(PI/2   , maxSensorRange);
-            //back
-            sensors[3] = addSensor(PI     , maxSensorRange);
+            sensors[0] = addSensor(-PI/6    , maxSensorRange);
+            sensors[1] = addSensor(PI/6     , maxSensorRange);
+            sensors[2] = addSensor(-PI/2.5f , maxSensorRange);
+            sensors[3] = addSensor(PI/2.5f  , maxSensorRange);
             //tentacle
-            sensors[4] = addSensor(0      , maxSensorRange);
-
-            */
-
-            //front
-            sensors[0] = addSensor(-PI/6      , maxSensorRange);
-            //left
-            sensors[1] = addSensor(PI/6 , maxSensorRange);
-
-            //right
-            sensors[2] = addSensor(-PI/2.5f   , maxSensorRange);
-            //back
-            sensors[3] = addSensor(PI/2.5f     , maxSensorRange);
-            //tentacle
-            sensors[4] = addSensor(0      , maxSensorRange);
+            sensors[4] = addSensor(0, maxSensorRange);
 
 
             direction = ROBO_STATUS.NO_STEERING;
             status = ROBO_STATUS.FORWARD;
+            statnding = false;
         }
 
         /**
@@ -652,39 +605,14 @@ public class playground extends PApplet{
             return new Vec2(x, y);
         }
 
+        /**
+         * Timer für Aktionen über Zeit
+         */
+        private float timer;
+
         public void update(float pDeltaTime) {
 
             mAngle += pDeltaTime * 20;
-
-            /*
-            sensors[0].angle(-(mAngle));
-            sensors[1].angle(-(mAngle + PI));
-            sensors[2].angle(-(mAngle + PI / 2));
-            sensors[3].angle(-(mAngle + 3 * PI / 2));
-            */
-
-            /*
-            switch (direction) {
-                case LEFT_DIRECTION:
-                    sensors[0].angle(-(mAngle));
-                    sensors[1].angle(-(mAngle + PI));
-                    sensors[2].angle(-(mAngle + PI / 2));
-                    sensors[3].angle(-(mAngle + 3 * PI / 2));
-                    break;
-                case RIGHT_DIRECTION:
-                    sensors[0].angle(mAngle);
-                    sensors[1].angle(mAngle + PI);
-                    sensors[2].angle(mAngle + PI / 2);
-                    sensors[3].angle(mAngle + 3 * PI / 2);
-                    break;
-                case NO_STEERING:
-                    sensors[0].angle(-(mAngle));
-                    sensors[1].angle(-(mAngle + PI));
-                    sensors[2].angle(-(mAngle + PI / 2));
-                    sensors[3].angle(-(mAngle + 3 * PI / 2));
-                    break;
-            }
-            */
 
             switch (status) {
                 case FORWARD:
@@ -712,14 +640,14 @@ public class playground extends PApplet{
 
             for (Sensor sensor : sensors) {
                 if (sensor.triggered()) {
-                    addObstacle(sensor.obstacle(), sensor.obstacleType());
+                    addObstacle(sensor.obstacle(), Sensor.WALL);//sensor.obstacleType()); Weil Walls nicht walls sind … TODO
                 }
             }
 
             Quad quad = aStar();
             int maxWaxPoints = generatePath(quad);
             int delta = Math.round(MAX_WAY_POINT_ID /
-                    (status == ROBO_STATUS.BACKWARD ? maxBackwardSpeed : maxForwardSpeed) * speed());
+                    (speed() < 0 ? maxBackwardSpeed : maxForwardSpeed) * speed());
             int wayPointId = maxWaxPoints - delta;
 
             float angleToGoal = 0;
@@ -728,18 +656,26 @@ public class playground extends PApplet{
                     if (q.getId() == wayPointId) {
                         wayPoint = q;
                         angleToGoal = angleToGoal(quadToWorldpoint(new Vec2(wayPoint.getMapX(), wayPoint.getMapY())));
-                        steer(angleToGoal);
+                        steer(status == ROBO_STATUS.BACKWARD ? -angleToGoal : angleToGoal);
                         break;
                     }
                 }
             }
 
-            if (angleToGoal < -PI/2.5f) {
-                status = ROBO_STATUS.BACKWARD;
-            } else if (angleToGoal > PI/2.5f) {
-                status = ROBO_STATUS.BACKWARD;
-            } else {
-                status = ROBO_STATUS.FORWARD;
+            println(timer);
+            println(status);
+            if (timer <= 0) {
+                if (angleToGoal < -PI/2f) {
+                    timer = pDeltaTime*12;
+                    status = ROBO_STATUS.BACKWARD;
+
+                } else if (angleToGoal > PI / 2f) {
+                    timer = pDeltaTime * 12;
+                    status = ROBO_STATUS.BACKWARD;
+
+                } else {
+                    status = ROBO_STATUS.FORWARD;
+                }
             }
 
             Sensor sensor;
@@ -755,22 +691,14 @@ public class playground extends PApplet{
 
                     break;
                 case BACKWARD:
-                    sensor = mostDisturbingFrontObstacle(sensors);
+                    sensor = mostDisturbingBackObstacle(sensors);
 
                     if (sensor != null) {
                         speed(maxBackwardSpeed * sensor.obstacleDistance() * 1.8f);
                     } else {
                         speed(maxBackwardSpeed);
                     }
-
-                    break;
-                case STANDING:
-                    sensor = mostDisturbingFrontObstacle(sensors);
-
-                    //Nur bei Blockade durch Hinderniss
-                    if (sensor != null && sensor.obstacleDistance() < 0.5f) {
-                        speed(maxBackwardSpeed);
-                    }
+                    timer -= pDeltaTime;
 
                     break;
             }
@@ -786,6 +714,7 @@ public class playground extends PApplet{
                         break;
                     case 'w':
                         speed(50);
+                        status = ROBO_STATUS.FORWARD;
                         break;
                     case 's':
                         speed(0);
@@ -793,12 +722,13 @@ public class playground extends PApplet{
                         break;
                     case  'x':
                         speed(maxBackwardSpeed);
+                        status = ROBO_STATUS.BACKWARD;
                         break;
                 }
             }
 
             //Save LastFrameRobo -> Before State Update !!!
-            lastRobos.push(new LastRobo(steer(), speed(), position(), sensors));
+            lastRobos.push(new LastRobo(steer(), position()));
             //Update States
             updateStates();
 
@@ -1125,15 +1055,13 @@ public class playground extends PApplet{
         }
 
         /**
-         * Upadate der einzelnen States wie stehen, forwärts fahren usw.
+         * Upadate der einzelnen States.
          */
         private void updateStates() {
 
             float middleVelocity = 0f;
             int countLeftDirection = 0;
             int countRightDirection = 0;
-            int countForward = 0;
-            int countBackward = 0;
 
             Iterator<LastRobo> iter = lastRobos.iterator();
             LastRobo lastRobo = iter.hasNext() ? iter.next() : null;
@@ -1152,24 +1080,13 @@ public class playground extends PApplet{
                 } else {
                     countRightDirection++;
                 }
-                if (robo.getSpeed() < 0) {
-                    countBackward++;
-                } else {
-                    countForward++;
-                }
             }
-
-            /*
-            //Status test
-            if (countBackward > countForward) {
-                status = ROBO_STATUS.BACKWARD;
-            } else if (countBackward < countForward) {
-                status = ROBO_STATUS.FORWARD;
-            } */
 
             //Is Stending nach Statustest
             if (-EPS < middleVelocity && middleVelocity < EPS) {
-                status = ROBO_STATUS.STANDING;
+                statnding = true;
+            } else {
+                statnding = false;
             }
 
 
@@ -1244,6 +1161,23 @@ public class playground extends PApplet{
             return mostImportantSensor;
         }
 
+        private Sensor nearestObstacle(final Sensor[] sensors) {
+            if (sensors == null) throw  new IllegalArgumentException();
+
+            Sensor mostImportantSensor = null;
+            float distanceToObstacle = MAX_FLOAT;
+
+            for (Sensor s : sensors) {
+                if (s.triggered()) {
+
+                    if (s.obstacleDistance() < distanceToObstacle) {
+                        distanceToObstacle = s.obstacleDistance();
+                        mostImportantSensor = s;
+                    }
+                }
+            }
+            return mostImportantSensor;
+        }
 
         private Sensor mostDisturbingBackObstacle(final Sensor[] sensors) {
 
@@ -1297,18 +1231,13 @@ public class playground extends PApplet{
                     break;
             }
 
-            switch (status) {
-                case FORWARD:
+            if (!statnding) {
+                if (status == ROBO_STATUS.FORWARD) {
                     triangle(2, 2, 0, 4, -2, 2);
-                    break;
-                case BACKWARD:
+                } else if (status == ROBO_STATUS.BACKWARD) {
                     triangle(2, -2, 0, -4, -2, -2);
-                    break;
-                default:
-                    //Draw Nothing
+                }
             }
-
-
 
             stroke(0);
             //draw a line pointing towards the goal
