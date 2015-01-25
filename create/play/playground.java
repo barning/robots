@@ -21,15 +21,16 @@ public class playground extends PApplet{
     public void setup() {
         size(1024, 768);
 
+        /*
         mEnvironment = new Environment(this);
         EnvironmentMap mEnvironmentMap = new MyEnvironmentMap(this, mEnvironment);
         mEnvironment.map(mEnvironmentMap);
-
-        //mEnvironment = new Environment(this, Environment.MAP_RANDOM_WALLS);
+        */
+        mEnvironment = new Environment(this, Environment.MAP_BAELLEBAD);
 
         mRobot = new MyRobot(mEnvironment);
         mEnvironment.add(mRobot);
-        mRobot.position(-400, -350);
+        //mRobot.position(-400, -350);
 
         mTrace = new Trace(mRobot);
         mOSD = new OSD(this, mEnvironment);
@@ -556,7 +557,7 @@ public class playground extends PApplet{
         /**
          * Epsilon für das isStanding-Prädikat
          */
-        private final float EPS = 0.001f;
+        private final float EPS = 0.04f;
 
         MyRobot(Environment pEnvironment) {
             super(pEnvironment);
@@ -709,11 +710,6 @@ public class playground extends PApplet{
                     break;
             }
 
-
-            boolean obstacleInView = sensors[0].triggered() || sensors[1].triggered()
-                                  || sensors[2].triggered() || sensors[3].triggered()
-                                  || sensors[4].triggered();
-
             for (Sensor sensor : sensors) {
                 if (sensor.triggered()) {
                     addObstacle(sensor.obstacle(), sensor.obstacleType());
@@ -726,7 +722,7 @@ public class playground extends PApplet{
                     (status == ROBO_STATUS.BACKWARD ? maxBackwardSpeed : maxForwardSpeed) * speed());
             int wayPointId = maxWaxPoints - delta;
 
-            float angleToGoal;
+            float angleToGoal = 0;
             if (!wayPoints.isEmpty()) {
                 for (Quad q : wayPoints) {
                     if (q.getId() == wayPointId) {
@@ -738,32 +734,46 @@ public class playground extends PApplet{
                 }
             }
 
-            speed(maxForwardSpeed);
+            if (angleToGoal < -PI/2.5f) {
+                status = ROBO_STATUS.BACKWARD;
+            } else if (angleToGoal > PI/2.5f) {
+                status = ROBO_STATUS.BACKWARD;
+            } else {
+                status = ROBO_STATUS.FORWARD;
+            }
 
-/*
-            if (obstacleInView) {
+            Sensor sensor;
+            switch (status) {
+                case FORWARD:
+                    sensor = mostDisturbingFrontObstacle(sensors);
 
-                Sensor sensor;
-                switch (status) {
-                    case FORWARD:
-                        sensor = mostDisturbingFrontObstacle(sensors);
+                    if (sensor != null) {
+                        speed(maxForwardSpeed * sensor.obstacleDistance() * 1.8f);
+                    } else {
+                        speed(maxForwardSpeed);
+                    }
 
-                        if (sensor != null) {
-                            speed(maxForwardSpeed * sensor.obstacleDistance() * 0.8f);
-                        }
+                    break;
+                case BACKWARD:
+                    sensor = mostDisturbingFrontObstacle(sensors);
 
-                        break;
-                    case BACKWARD:
-                        sensor = mostDisturbingFrontObstacle(sensors);
+                    if (sensor != null) {
+                        speed(maxBackwardSpeed * sensor.obstacleDistance() * 1.8f);
+                    } else {
+                        speed(maxBackwardSpeed);
+                    }
 
-                        if (sensor != null) {
-                            speed(maxBackwardSpeed * sensor.obstacleDistance() * 0.8f);
-                        }
+                    break;
+                case STANDING:
+                    sensor = mostDisturbingFrontObstacle(sensors);
 
-                        break;
-                }
+                    //Nur bei Blockade durch Hinderniss
+                    if (sensor != null && sensor.obstacleDistance() < 0.5f) {
+                        speed(maxBackwardSpeed);
+                    }
 
-            }*/
+                    break;
+            }
 
             /* steer robot and controll its motor */
             if (keyPressed) {
@@ -848,7 +858,6 @@ public class playground extends PApplet{
         /**
          * Führt A* aus. Target muss erreichbar sein.
          *
-         * TODO Wände und Bälle unterscheiden. Besser in Update
          */
         public Quad aStar() {
 
@@ -982,9 +991,9 @@ public class playground extends PApplet{
             //Wände werden NICHT durch andere Hindernisse überlagert
             //Unknown überlagert Ball
 
-            switch (obstacle.getObstacleTyp()) {
+            switch (obstacleTyp) {
                 case Sensor.UNKNOWN:
-                    //Quad aktualisieren, da neu gefunden
+                    obstacle.setObstacleTyp(Sensor.UNKNOWN);
                     obstacle.setEffort(RADIUS*EFFORT);
 
                     for (int i = WEST; i <= EAST; i++) {
@@ -1003,8 +1012,40 @@ public class playground extends PApplet{
                         }
                     }
                     break;
+                case Sensor.WALL:
+                    obstacle.setObstacleTyp(Sensor.WALL);
+                    obstacle.setEffort(RADIUS*EFFORT);
+                    obstacle.setObstacale(true);
+
+                    for (int i = WEST; i <= EAST; i++) {
+                        for (int j = NORTH; j <= SOUTH; j++) {
+                            float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
+                            Quad quad = map[i][j];
+                            if (lenghtToOrigin <= RADIUS) {
+                                //Felder werden makiert
+                                quad.setObstacleTyp(Sensor.WALL);
+
+                                float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
+
+                                switch (quad.getObstacleTyp()) {
+                                    case Sensor.UNKNOWN:
+                                        quad.setEffort(newEffort);
+                                        break;
+                                    case Sensor.BALL:
+                                        quad.setEffort(newEffort);
+                                        break;
+                                    default:
+                                        if (newEffort > quad.getEffort()) {
+                                            quad.setEffort(newEffort);
+                                        }
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                    break;
                 case Sensor.BALL:
-                    //Quad aktualisieren, da neu gefunden
+                    obstacle.setObstacleTyp(Sensor.BALL);
                     obstacle.setEffort(RADIUS*EFFORT);
 
                     for (int i = WEST; i <= EAST; i++) {
@@ -1023,77 +1064,7 @@ public class playground extends PApplet{
                         }
                     }
                     break;
-                case Sensor.WALL:
-                    //Walls sind beständig und verändern sich nicht. Daher nicht neu berechnen
-                    break;
-                default:
-                    //Quad wurde noch nicht makiert.
-                    switch (obstacleTyp) {
-                        case Sensor.UNKNOWN:
-                            obstacle.setObstacleTyp(Sensor.UNKNOWN);
-                            obstacle.setEffort(RADIUS*EFFORT);
-
-                            for (int i = WEST; i <= EAST; i++) {
-                                for (int j = NORTH; j <= SOUTH; j++) {
-                                    float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
-                                    Quad quad = map[i][j];
-                                    if (lenghtToOrigin <= RADIUS && quad.getObstacleTyp() != Sensor.WALL) {
-                                        //Felder werden makiert
-                                        quad.setObstacleTyp(Sensor.UNKNOWN);
-
-                                        float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
-                                        if (newEffort > quad.getEffort()) {
-                                            quad.setEffort(newEffort);
-                                        }
-                                    }
-                                }
-                            }
-                            break;
-                        case Sensor.WALL:
-                            obstacle.setObstacleTyp(Sensor.WALL);
-                            obstacle.setEffort(RADIUS*EFFORT);
-                            obstacle.setObstacale(true);
-
-                            for (int i = WEST; i <= EAST; i++) {
-                                for (int j = NORTH; j <= SOUTH; j++) {
-                                    float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
-                                    Quad quad = map[i][j];
-                                    if (lenghtToOrigin <= RADIUS) {
-                                        //Felder werden makiert
-                                        quad.setObstacleTyp(Sensor.WALL);
-
-                                        float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
-                                        if (newEffort > quad.getEffort()) {
-                                            quad.setEffort(newEffort);
-                                        }
-                                    }
-                                }
-                            }
-                            break;
-                        case Sensor.BALL:
-                            obstacle.setObstacleTyp(Sensor.BALL);
-                            obstacle.setEffort(RADIUS*EFFORT);
-
-                            for (int i = WEST; i <= EAST; i++) {
-                                for (int j = NORTH; j <= SOUTH; j++) {
-                                    float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
-                                    Quad quad = map[i][j];
-                                    if (lenghtToOrigin <= RADIUS && quad.getObstacleTyp() != Sensor.WALL && quad.getObstacleTyp() != Sensor.UNKNOWN) {
-                                        //Felder werden makiert
-                                        quad.setObstacleTyp(Sensor.BALL);
-
-                                        float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
-                                        if (newEffort > quad.getEffort()) {
-                                            quad.setEffort(newEffort);
-                                        }
-                                    }
-                                }
-                            }
-                            break;
-                    }
-                    break;
             }
-
         }
 
         /**
@@ -1175,12 +1146,6 @@ public class playground extends PApplet{
             }
             middleVelocity /= lastRobos.size();
 
-            //Is Stending
-            if (-EPS < middleVelocity && middleVelocity < EPS) {
-                status = ROBO_STATUS.STANDING;
-            }
-
-
             for (LastRobo robo : lastRobos) {
                 if (robo.getSteer() <= 0) {
                     countLeftDirection++;
@@ -1194,15 +1159,21 @@ public class playground extends PApplet{
                 }
             }
 
+            /*
             //Status test
             if (countBackward > countForward) {
                 status = ROBO_STATUS.BACKWARD;
             } else if (countBackward < countForward) {
                 status = ROBO_STATUS.FORWARD;
+            } */
+
+            //Is Stending nach Statustest
+            if (-EPS < middleVelocity && middleVelocity < EPS) {
+                status = ROBO_STATUS.STANDING;
             }
 
+
             //Direction test
-            //TODO stört den Sensorkopf, bei schnellem Richtungswechsel
             if (countLeftDirection > countRightDirection) {
                 direction = ROBO_STATUS.LEFT_DIRECTION;
             } else if (countLeftDirection < countRightDirection) {
@@ -1240,20 +1211,6 @@ public class playground extends PApplet{
                 goalAngle += 2 * Math.PI;
             }
             return goalAngle;
-        }
-
-        /**
-         * Distanz zu einem beliebigen Punkt
-         *
-         */
-        public float distanceToGoal(final Vec2 goal) {
-            if (goal != null) {
-                Vec2 target = goal;
-                Vec2 pos = position();
-                Vec2 relTarget = target.sub(pos);
-                return relTarget.length();
-            }
-            return 0;
         }
 
 
