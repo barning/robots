@@ -5,7 +5,6 @@ import org.jbox2d.common.Vec2;
 import processing.core.PApplet;
 import processing.core.PGraphics;
 import de.hfkbremen.robots.challenge.*;
-import sun.management.*;
 
 import java.util.*;
 
@@ -170,6 +169,13 @@ public class playground extends PApplet{
 
     class MyRobot extends Robot {
 
+        final int FORWARD = 0;
+        final int BACKWARD = 1;
+        final int STANDING = 2;
+        final int LEFT_DIRECTION = 3;
+        final int RIGHT_DIRECTION = 4;
+        final int NO_STEERING = 5;
+
         /**
          * Knoten eines Rasters. Wird für A* verwendet.
          */
@@ -181,7 +187,9 @@ public class playground extends PApplet{
             /**
              * Speichert zusätzlich einen Betrag an Aufwand, der auf die Heuristik in A* addiert wird.
              */
-            private float effort;
+            private float wall;
+            private float ball;
+            private float unknown;
 
             /**
              * Heuristic für A*. Speichert die Luftlinie.
@@ -199,19 +207,6 @@ public class playground extends PApplet{
             private boolean obstacale;
 
             /**
-             * Bestimmt das verhalten. -1 ist Grundwert.
-             */
-            private int obstacleTyp;
-
-            public int getObstacleTyp() {
-                return obstacleTyp;
-            }
-
-            public void setObstacleTyp(int obstacleTyp) {
-                this.obstacleTyp = obstacleTyp;
-            }
-
-            /**
              * Vorgängerknoten.
              */
             private Quad predecessor;
@@ -224,7 +219,7 @@ public class playground extends PApplet{
             /**
              * Farbwert eines Nodes
              */
-            private float[] color = new float[3];
+            private float[] farbe = new float[3];
 
             /**
              * Zähler für den Knoten, ob es der erste … n-te Knoten ist.
@@ -244,15 +239,15 @@ public class playground extends PApplet{
                 this.obstacale = obstacale;
                 predecessor = null;
                 distToStart = 0;
-                //Nichts ist -1
-                obstacleTyp = -1;
                 id = 0;
                 f = Float.MAX_VALUE;
-                effort = 0;
+                wall = 0;
+                ball = 0;
+                unknown = 0;
                 //Lege Farbe fest
-                color[0] = 0;
-                color[1] = 0;
-                color[2] = 0;
+                farbe[0] = 0;
+                farbe[1] = 0;
+                farbe[2] = 0;
             }
 
             public int getId() {
@@ -322,20 +317,36 @@ public class playground extends PApplet{
                 this.distToStart = distToStart;
             }
 
+            public float getWall() {
+                return wall;
+            }
+
+            public void setWall(float wall) {
+                this.wall = wall;
+            }
+
+            public float getBall() {
+                return ball;
+            }
+
+            public void setBall(float ball) {
+                this.ball = ball;
+            }
+
+            public float getUnknown() {
+                return unknown;
+            }
+
+            public void setUnknown(float unknown) {
+                this.unknown = unknown;
+            }
+
             /**
              * Gibt Array zurück, der verändert werden darf.
              * @return Array zum verändern der Farbwerte.
              */
-            public float[] getColor() {
-                return color;
-            }
-
-            public float getEffort() {
-                return effort;
-            }
-
-            public void setEffort(float effort) {
-                this.effort = effort;
+            public float[] getFarbe() {
+                return farbe;
             }
 
             @Override
@@ -405,7 +416,7 @@ public class playground extends PApplet{
          */
         private final float EFFORT = 2.8f;
 
-        private final float EFFORT_REDUCTION = 0.5f;
+        private final float EFFORT_REDUCTION = 0.2f;
 
         /**
          * Comparator für PriorityQueue
@@ -443,6 +454,8 @@ public class playground extends PApplet{
         class LastRobo {
 
             private float steer;
+            private float speed;
+            private Vec2 lastPosition;
 
             public float getSteer() {
                 return steer;
@@ -452,14 +465,17 @@ public class playground extends PApplet{
                 return lastPosition;
             }
 
-            private Vec2 lastPosition;
+            public float getSpeed() {
+                return speed;
+            }
 
-            public LastRobo(final float steer, final Vec2 lastPosition) {
+            public LastRobo(final float steer, final Vec2 lastPosition, final float speed) {
                 if (lastPosition == null) {
                     throw new IllegalArgumentException();
                 }
                 this.steer = steer;
                 this.lastPosition = new Vec2 (lastPosition);
+                this.speed = speed;
             }
         }
 
@@ -494,15 +510,15 @@ public class playground extends PApplet{
          * Speichert, ob der Roboter links (LEFT_DIRECTION) oder rechts(RIGHT_DIRECTION) einlenkt.
          * Andere Stati sind nicht zulässig.
          */
-        private ROBO_STATUS direction;
+        private int direction;
 
         /**
          * Speichert den Bewegungsstatus FORWARD, BACKWARD.
          * Andere Stati sind nicht zulässig.
          */
-        private ROBO_STATUS status;
+        private int status;
 
-        private boolean statnding;
+        private boolean standing;
 
         /**
          * Sensoren des Roboters
@@ -510,9 +526,9 @@ public class playground extends PApplet{
         private final Sensor[] sensors;
 
         /**
-         * Größe für lastFrameRobos. Entspricht drei Frames
+         * Größe für lastFrameRobos. Entspricht LAST_ROBO_SIZE  Frames.
          */
-        private int LAST_ROBO_SIZE = 4;
+        private int LAST_ROBO_SIZE = 6;
 
         /**
          * Die letzten drei Roboter aus den letzten drei Frames.
@@ -550,9 +566,9 @@ public class playground extends PApplet{
             sensors[4] = addSensor(0, maxSensorRange);
 
 
-            direction = ROBO_STATUS.NO_STEERING;
-            status = ROBO_STATUS.FORWARD;
-            statnding = false;
+            direction = NO_STEERING;
+            status = -1;
+            standing = false;
         }
 
         /**
@@ -640,7 +656,8 @@ public class playground extends PApplet{
 
             for (Sensor sensor : sensors) {
                 if (sensor.triggered()) {
-                    addObstacle(sensor.obstacle(), sensor.obstacleType()); //TODO Walls in eigener Map sind nicht immer Walls…
+                    addObstacle(sensor.obstacle(), sensor.obstacleType() == Sensor.UNKNOWN ? Sensor.WALL :
+                            sensor.obstacleType() == Sensor.BALL ? Sensor.BALL : Sensor.WALL);//sensor.obstacleType()); //TODO Walls in eigener Map sind nicht immer Walls…
                     // TODO Läuft perfekt wenn diese so wäre
                 }
             }
@@ -657,7 +674,7 @@ public class playground extends PApplet{
                     if (q.getId() == wayPointId) {
                         wayPoint = q;
                         angleToGoal = angleToGoal(quadToWorldpoint(new Vec2(wayPoint.getMapX(), wayPoint.getMapY())));
-                        steer(status == ROBO_STATUS.BACKWARD ? -angleToGoal : angleToGoal);
+                        steer(status == BACKWARD ? -angleToGoal : angleToGoal);
                         break;
                     }
                 }
@@ -665,19 +682,37 @@ public class playground extends PApplet{
 
             println(timer);
             println(status);
-            if (timer <= 0) {
+            println(standing);
+
+            //TODO hier noch mal schraf nachdenken !!!
+            if (standing && timer <= 0) {
+                if (lastRobos.getFirst().getSpeed() <= 0) {
+                    status = FORWARD;
+                    timer = pDeltaTime * 18;
+                }
+                if (lastRobos.getFirst().getSpeed() > 0) {
+                    status = BACKWARD;
+                    timer = pDeltaTime * 18;
+                }
+                if (status == -1) {
+                    status = FORWARD;
+                    timer = pDeltaTime * 18;
+                }
+            } else if (timer <= 0) {
                 if (angleToGoal < -PI/2f) {
-                    timer = pDeltaTime*12;
-                    status = ROBO_STATUS.BACKWARD;
+                    timer = pDeltaTime * 18;
+                    status = BACKWARD;
 
                 } else if (angleToGoal > PI / 2f) {
-                    timer = pDeltaTime * 12;
-                    status = ROBO_STATUS.BACKWARD;
+                    timer = pDeltaTime * 18;
+                    status = BACKWARD;
 
                 } else {
-                    status = ROBO_STATUS.FORWARD;
+                    status = FORWARD;
+                    println("start");
                 }
             }
+
 
             Sensor sensor;
             switch (status) {
@@ -699,7 +734,6 @@ public class playground extends PApplet{
                     } else {
                         speed(maxBackwardSpeed);
                     }
-                    timer -= pDeltaTime;
 
                     break;
             }
@@ -715,7 +749,7 @@ public class playground extends PApplet{
                         break;
                     case 'w':
                         speed(50);
-                        status = ROBO_STATUS.FORWARD;
+                        status = FORWARD;
                         break;
                     case 's':
                         speed(0);
@@ -723,15 +757,17 @@ public class playground extends PApplet{
                         break;
                     case  'x':
                         speed(maxBackwardSpeed);
-                        status = ROBO_STATUS.BACKWARD;
+                        status = BACKWARD;
                         break;
                 }
             }
 
             //Save LastFrameRobo -> Before State Update !!!
-            lastRobos.push(new LastRobo(steer(), position()));
+            lastRobos.push(new LastRobo(steer(), position(), speed()));
             //Update States
             updateStates();
+
+            timer -= pDeltaTime;
 
         }
 
@@ -764,23 +800,13 @@ public class playground extends PApplet{
                     quad.setDistToStart(0);
                     quad.setId(0);
 
-                    switch (quad.getObstacleTyp()) {
-                        case Sensor.BALL :
-                            quad.setEffort(quad.getEffort() - EFFORT_REDUCTION * 0.6f);
-                            if (quad.getEffort() < 0) {
-                                quad.setEffort(0);
-                                quad.setObstacleTyp(-1);
-                            }
-                            break;
-                        case Sensor.UNKNOWN :
-                            quad.setEffort(quad.getEffort() - EFFORT_REDUCTION * 0.9f);
-                            if (quad.getEffort() < 0) {
-                                quad.setEffort(0);
-                                quad.setObstacleTyp(-1);
-                            }
-                            break;
-                        default:
-                            break;
+                    quad.setBall(quad.getBall() - EFFORT_REDUCTION * 0.6f);
+                    if (quad.getBall() < 0) {
+                        quad.setBall(0);
+                    }
+                    quad.setUnknown(quad.getUnknown() - EFFORT_REDUCTION * 1.9f);
+                    if (quad.getUnknown() < 0) {
+                        quad.setUnknown(0);
                     }
                 }
             }
@@ -889,7 +915,7 @@ public class playground extends PApplet{
          */
         private void updateSucessor(final Quad successor, final float costsInDist, final Quad possiblePredecessor) {
             float tentativeDistToStart = successor.getDistToStart() + costsInDist;
-            float f = tentativeDistToStart + successor.getH() + successor.getEffort();
+            float f = tentativeDistToStart + successor.getH() + successor.getWall() + successor.getBall() + successor.getUnknown();
 
             if ((!openList.contains(successor) || tentativeDistToStart < successor.getDistToStart())
                     && successor.getF() > f && !successor.isObstacale()) {
@@ -924,72 +950,71 @@ public class playground extends PApplet{
 
             switch (obstacleTyp) {
                 case Sensor.UNKNOWN:
-                    obstacle.setObstacleTyp(Sensor.UNKNOWN);
-                    obstacle.setEffort(RADIUS*EFFORT);
+
+                    obstacle.setUnknown(RADIUS * EFFORT - obstacle.getWall() - obstacle.getBall());
 
                     for (int i = WEST; i <= EAST; i++) {
                         for (int j = NORTH; j <= SOUTH; j++) {
-                            float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
+                            float lenghtToObstacle = new Vec2(i, j).sub(obstacleMapPoint).length();
                             Quad quad = map[i][j];
-                            if (lenghtToOrigin <= RADIUS && quad.getObstacleTyp() != Sensor.WALL) {
-                                //Felder werden makiert
-                                quad.setObstacleTyp(Sensor.UNKNOWN);
+                            if (lenghtToObstacle <= RADIUS) {
 
-                                float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
-                                if (newEffort > quad.getEffort()) {
-                                    quad.setEffort(newEffort);
+                                float newEffort = (RADIUS-lenghtToObstacle) * EFFORT - quad.getWall() - quad.getBall();
+                                float sumEffortOld = quad.getWall() + quad.getBall() + quad.getUnknown();
+                                if (newEffort > sumEffortOld) {
+                                    quad.setUnknown(newEffort);
                                 }
                             }
                         }
                     }
                     break;
                 case Sensor.WALL:
-                    obstacle.setObstacleTyp(Sensor.WALL);
-                    obstacle.setEffort(RADIUS*EFFORT);
+                    obstacle.setWall(RADIUS*EFFORT);
+                    obstacle.setBall(0);
+                    obstacle.setUnknown(0);
                     obstacle.setObstacale(true);
 
                     for (int i = WEST; i <= EAST; i++) {
                         for (int j = NORTH; j <= SOUTH; j++) {
-                            float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
+                            float lenghtToObstacle = new Vec2(i, j).sub(obstacleMapPoint).length();
                             Quad quad = map[i][j];
-                            if (lenghtToOrigin <= RADIUS) {
-                                //Felder werden makiert
-                                quad.setObstacleTyp(Sensor.WALL);
+                            if (lenghtToObstacle <= RADIUS) {
 
-                                float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
+                                if (lenghtToObstacle <= QUAD_SIZE_MIN || lenghtToObstacle <= QUAD_SIZE_MAX) {
+                                    quad.setObstacale(true);
+                                }
 
-                                switch (quad.getObstacleTyp()) {
-                                    case Sensor.UNKNOWN:
-                                        quad.setEffort(newEffort);
-                                        break;
-                                    case Sensor.BALL:
-                                        quad.setEffort(newEffort);
-                                        break;
-                                    default:
-                                        if (newEffort > quad.getEffort()) {
-                                            quad.setEffort(newEffort);
-                                        }
-                                        break;
+                                //Der eigentlich Effort ohne die Abzüge der anderen Werte, wird bei Wall verrechnet,
+                                // da Wall beständig sein soll
+                                float newEffort = (RADIUS-lenghtToObstacle) * EFFORT;
+                                float oldWall = quad.getWall();
+
+                                if (newEffort > quad.getWall()) {
+                                    quad.setWall(newEffort);
+
+                                    //Ball und Unknown korrigieren:
+                                    //Wert ist immer korrigiert nach w+b+u <= EFFORT*RADIUS
+                                    float difOldNew = quad.getWall()-oldWall;
+                                    quad.setBall(quad.getBall() - difOldNew/2);
+                                    quad.setUnknown(quad.getUnknown() - difOldNew / 2);
                                 }
                             }
                         }
                     }
                     break;
                 case Sensor.BALL:
-                    obstacle.setObstacleTyp(Sensor.BALL);
-                    obstacle.setEffort(RADIUS*EFFORT);
+                    obstacle.setBall(RADIUS * EFFORT - obstacle.getWall() - obstacle.getUnknown());
 
                     for (int i = WEST; i <= EAST; i++) {
                         for (int j = NORTH; j <= SOUTH; j++) {
-                            float lenghtToOrigin = new Vec2(i, j).sub(obstacleMapPoint).length();
+                            float lenghtToObstacle = new Vec2(i, j).sub(obstacleMapPoint).length();
                             Quad quad = map[i][j];
-                            if (lenghtToOrigin <= RADIUS && quad.getObstacleTyp() != Sensor.WALL && quad.getObstacleTyp() != Sensor.UNKNOWN) {
-                                //Felder werden makiert
-                                quad.setObstacleTyp(Sensor.BALL);
+                            if (lenghtToObstacle <= RADIUS) {
 
-                                float newEffort = (RADIUS-lenghtToOrigin) * EFFORT;
-                                if (newEffort > quad.getEffort()) {
-                                    quad.setEffort(newEffort);
+                                float newEffort = (RADIUS-lenghtToObstacle) * EFFORT - quad.getWall() - quad.getUnknown();
+                                float sumEffortOld = quad.getWall() + quad.getBall() + quad.getUnknown();
+                                if (newEffort > sumEffortOld) {
+                                    quad.setBall(newEffort);
                                 }
                             }
                         }
@@ -1013,10 +1038,11 @@ public class playground extends PApplet{
             for (int i = WEST; i < EAST; i++) {
                 for (int j = NORTH; j < SOUTH; j++) {
                     Quad quad = map[i][j];
-                    if (quad.getEffort() > 0) {
-                        quad.getColor()[0] = RED/(RADIUS * EFFORT) *quad.getEffort();
-                        quad.getColor()[1] = GREEN - RED/(RADIUS * EFFORT) *quad.getEffort();
-                        fill(quad.getColor()[0], quad.getColor()[1], quad.getColor()[2]);
+                    float sumEffort =  quad.getWall() + quad.getBall() + quad.getUnknown();
+                    if (sumEffort > 0) {
+                        quad.getFarbe()[0] = RED/(RADIUS * EFFORT) * sumEffort;
+                        quad.getFarbe()[1] = GREEN - RED/(RADIUS * EFFORT) * sumEffort;
+                        fill(quad.getFarbe()[0], quad.getFarbe()[1], quad.getFarbe()[2]);
                         Vec2 positionInWorld = quadToWorldpoint(new Vec2(i, j));
                         rect(positionInWorld.x, positionInWorld.y, QUAD_SIZE_MIN, QUAD_SIZE_MIN);
                     }
@@ -1064,6 +1090,7 @@ public class playground extends PApplet{
             int countLeftDirection = 0;
             int countRightDirection = 0;
 
+            //Hier werden alle letzten Roboter geprüft. Hängt von LAST_ROBO_SIZE ab.
             Iterator<LastRobo> iter = lastRobos.iterator();
             LastRobo lastRobo = iter.hasNext() ? iter.next() : null;
             while (iter.hasNext() && lastRobo != null) {
@@ -1075,7 +1102,12 @@ public class playground extends PApplet{
             }
             middleVelocity /= lastRobos.size();
 
-            for (LastRobo robo : lastRobos) {
+            //Es sollen nur die ersten drei letzten Roboter gezählt werden.
+            iter = lastRobos.iterator();
+            int count = 0;
+            while (iter.hasNext() && count < 4) {
+                LastRobo robo = iter.next();
+                count++;
                 if (robo.getSteer() <= 0) {
                     countLeftDirection++;
                 } else {
@@ -1084,20 +1116,20 @@ public class playground extends PApplet{
             }
 
             //Is Stending nach Statustest
-            if (-EPS < middleVelocity && middleVelocity < EPS) {
-                statnding = true;
+            if (-EPS < middleVelocity && middleVelocity < EPS && lastRobos.size() == LAST_ROBO_SIZE) {
+                standing = true;
             } else {
-                statnding = false;
+                standing = false;
             }
 
 
             //Direction test
             if (countLeftDirection > countRightDirection) {
-                direction = ROBO_STATUS.LEFT_DIRECTION;
+                direction = LEFT_DIRECTION;
             } else if (countLeftDirection < countRightDirection) {
-                direction = ROBO_STATUS.RIGHT_DIRECTION;
+                direction = RIGHT_DIRECTION;
             } else {
-                direction = ROBO_STATUS.NO_STEERING;
+                direction = NO_STEERING;
             }
 
         }
@@ -1232,10 +1264,10 @@ public class playground extends PApplet{
                     break;
             }
 
-            if (!statnding) {
-                if (status == ROBO_STATUS.FORWARD) {
+            if (!standing) {
+                if (status == FORWARD) {
                     triangle(2, 2, 0, 4, -2, 2);
-                } else if (status == ROBO_STATUS.BACKWARD) {
+                } else if (status == BACKWARD) {
                     triangle(2, -2, 0, -4, -2, -2);
                 }
             }
