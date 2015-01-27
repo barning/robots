@@ -13,7 +13,7 @@ public class playground extends PApplet{
 
     Environment mEnvironment;
     MyRobot mRobot;
-    float mScale = 5f;
+    float mScale = 0.5f;
     Trace mTrace;
     OSD mOSD;
 
@@ -21,7 +21,7 @@ public class playground extends PApplet{
         size(1024, 768);
 
 
-        mEnvironment = new Environment(this);
+        mEnvironment = new Environment(this);//, Environment.MAP_RACE_TEST);
         EnvironmentMap mEnvironmentMap = new MyEnvironmentMap(this, mEnvironment);
         mEnvironment.map(mEnvironmentMap);
 
@@ -29,8 +29,7 @@ public class playground extends PApplet{
 
         mRobot = new MyRobot(mEnvironment);
         mEnvironment.add(mRobot);
-        mRobot.position(-400, -350);
-
+        mRobot.position(30, -20);
         mTrace = new Trace(mRobot);
         mOSD = new OSD(this, mEnvironment);
     }
@@ -39,100 +38,74 @@ public class playground extends PApplet{
         MyEnvironmentMap(PApplet pParent, Environment pEnvironment) {
             super(pParent, pEnvironment);
 
-            pEnvironment.target().position().x = 300;
-            pEnvironment.target().position().y = 220;
+            pEnvironment.target().position().x = -380;
+            pEnvironment.target().position().y = 270;
         }
 
         @Override
         public void fillCornersAndBalls() {
-            addCorner(0.11328125f, 0.1953125f);
-            addCorner(0.11328125f, 0.203125f);
-            addCorner(0.021484375f, 0.54296875f);
-            addCorner(0.037109375f, 0.8671875f);
-            addCorner(0.037109375f, 0.9707031f);
-            addCorner(0.140625f, 0.9863281f);
-            addCorner(0.12109375f, 0.8925781f);
-            addCorner(0.099609375f, 0.7675781f);
-            addCorner(0.13085938f, 0.42578125f);
-            addCorner(0.203125f, 0.24414062f);
-            addCorner(0.20703125f, 0.21875f);
-            addCorner(0.29101562f, 0.21679688f);
-            addCorner(0.25585938f, 0.33007812f);
-            addCorner(0.22851562f, 0.48242188f);
-            addCorner(0.19726562f, 0.6972656f);
-            addCorner(0.21289062f, 0.8203125f);
-            addCorner(0.22851562f, 0.9199219f);
-            addCorner(0.34765625f, 0.9511719f);
-            addCorner(0.39648438f, 0.921875f);
-            addCorner(0.35742188f, 0.890625f);
-            addCorner(0.29492188f, 0.8417969f);
-            addCorner(0.30664062f, 0.7832031f);
-            addCorner(0.36914062f, 0.71484375f);
-            addCorner(0.42578125f, 0.8066406f);
-            addCorner(0.4921875f, 0.890625f);
-            addCorner(0.5957031f, 0.921875f);
-            addCorner(0.6503906f, 0.875f);
-            addCorner(0.5488281f, 0.8105469f);
-            addCorner(0.45703125f, 0.609375f);
-            addCorner(0.3515625f, 0.6074219f);
-            addCorner(0.27539062f, 0.6582031f);
-            addCorner(0.33984375f, 0.4765625f);
-            addCorner(0.35546875f, 0.34960938f);
-            addCorner(0.48828125f, 0.47851562f);
-            addCorner(0.48632812f, 0.4765625f);
-            addCorner(0.5097656f, 0.50390625f);
-            addCorner(0.6484375f, 0.5800781f);
-            addCorner(0.8535156f, 0.7050781f);
-            addCorner(0.859375f, 0.5097656f);
-            addCorner(0.8105469f, 0.34179688f);
-            addCorner(0.8613281f, 0.16015625f);
-            addCorner(0.68359375f, 0.1796875f);
-            addCorner(0.734375f, 0.36523438f);
-            addCorner(0.7988281f, 0.5234375f);
-            addCorner(0.7324219f, 0.5488281f);
-            addCorner(0.6347656f, 0.5019531f);
-            addCorner(0.5410156f, 0.38671875f);
-            addCorner(0.44335938f, 0.33789062f);
-            addCorner(0.40625f, 0.26367188f);
-            addCorner(0.39648438f, 0.16992188f);
-            addCorner(0.5859375f, 0.27539062f);
-            addCorner(0.640625f, 0.38085938f);
-            addCorner(0.6875f, 0.34765625f);
-            addCorner(0.6484375f, 0.2578125f);
-            addCorner(0.58203125f, 0.13085938f);
-            addCorner(0.7207031f, 0.08984375f);
-            addCorner(0.6269531f, 0.041015625f);
-            addCorner(0.25390625f, 0.060546875f);
-            addCorner(0.025390625f, 0.04296875f);
-            addCorner(0.12890625f, 0.1015625f);
-            addCorner(0.2890625f, 0.103515625f);
-            addCorner(0.33789062f, 0.14257812f);
-            addCorner(0.25390625f, 0.15820312f);
-            addCorner(0.16601562f, 0.15625f);
-            addCorner(0.11328125f, 0.19921875f);
-            addBall(0.15039062f, 0.21875f);
-            addBall(0.30664062f, 0.19726562f);
-            addBall(0.39648438f, 0.111328125f);
-            addBall(0.484375f, 0.14648438f);
-            addBall(0.50390625f, 0.10546875f);
-            addBall(0.7578125f, 0.25f);
-            addBall(0.76953125f, 0.31835938f);
-            addBall(0.81640625f, 0.6191406f);
-            addBall(0.5019531f, 0.4296875f);
-            addBall(0.5488281f, 0.4609375f);
-            addBall(0.53515625f, 0.4296875f);
-            addBall(0.35351562f, 0.29492188f);
-            addBall(0.30273438f, 0.34765625f);
-            addBall(0.29101562f, 0.46484375f);
-            addBall(0.2734375f, 0.41796875f);
-            addBall(0.3125f, 0.41210938f);
-            addBall(0.23828125f, 0.66015625f);
-            addBall(0.26953125f, 0.7421875f);
-            addBall(0.3984375f, 0.6777344f);
-            addBall(0.47265625f, 0.7890625f);
-            addBall(0.0703125f, 0.8691406f);
-            addBall(0.080078125f, 0.51171875f);
-            addBall(0.13085938f, 0.30664062f);
+            addCorner(0.33984375f, 0.5292969f);
+            addCorner(0.42382812f, 0.5566406f);
+            addCorner(0.51171875f, 0.5449219f);
+            addCorner(0.578125f, 0.51171875f);
+            addCorner(0.58203125f, 0.42578125f);
+            addCorner(0.5175781f, 0.41601562f);
+            addCorner(0.4609375f, 0.37890625f);
+            addCorner(0.40234375f, 0.34375f);
+            addCorner(0.41601562f, 0.30078125f);
+            addCorner(0.47460938f, 0.30273438f);
+            addCorner(0.58203125f, 0.3671875f);
+            addCorner(0.63671875f, 0.2890625f);
+            addCorner(0.609375f, 0.22070312f);
+            addCorner(0.56640625f, 0.1328125f);
+            addCorner(0.49804688f, 0.095703125f);
+            addCorner(0.43164062f, 0.064453125f);
+            addCorner(0.34765625f, 0.05078125f);
+            addCorner(0.26953125f, 0.052734375f);
+            addCorner(0.16601562f, 0.068359375f);
+            addCorner(0.087890625f, 0.091796875f);
+            addCorner(0.052734375f, 0.1796875f);
+            addCorner(0.10546875f, 0.23632812f);
+            addCorner(0.17773438f, 0.20898438f);
+            addCorner(0.2265625f, 0.14257812f);
+            addCorner(0.31445312f, 0.14453125f);
+            addCorner(0.4140625f, 0.14648438f);
+            addCorner(0.47460938f, 0.17773438f);
+            addCorner(0.36328125f, 0.234375f);
+            addCorner(0.31835938f, 0.29296875f);
+            addCorner(0.21289062f, 0.40039062f);
+            addCorner(0.19726562f, 0.49609375f);
+            addCorner(0.40039062f, 0.5449219f);
+
+            addBall(0.41992188f, 0.43945312f);
+            addBall(0.38085938f, 0.45703125f);
+            addBall(0.36914062f, 0.38476562f);
+            addBall(0.28125f, 0.44726562f);
+            addBall(0.38476562f, 0.26757812f);
+            addBall(0.46289062f, 0.27539062f);
+            addBall(0.5683594f, 0.30664062f);
+            addBall(0.56640625f, 0.21875f);
+            addBall(0.51171875f, 0.203125f);
+            addBall(0.48828125f, 0.13085938f);
+            addBall(0.30273438f, 0.1015625f);
+            addBall(0.15625f, 0.103515625f);
+            addBall(0.3984375f, 0.080078125f);
+            addBall(0.34960938f, 0.05859375f);
+            addBall(0.34765625f, 0.125f);
+            addBall(0.40429688f, 0.13671875f);
+            addBall(0.33007812f, 0.4765625f);
+            addBall(0.25195312f, 0.47851562f);
+            addBall(0.23046875f, 0.45703125f);
+            addBall(0.22851562f, 0.47460938f);
+            addBall(0.23828125f, 0.44726562f);
+            addBall(0.23828125f, 0.421875f);
+            addBall(0.26171875f, 0.46289062f);
+            addBall(0.28320312f, 0.49023438f);
+            addBall(0.34179688f, 0.5097656f);
+            addBall(0.5488281f, 0.44335938f);
+            addBall(0.515625f, 0.4296875f);
+            addBall(0.46679688f, 0.41992188f);
+
         }
     }
 
@@ -415,8 +388,10 @@ public class playground extends PApplet{
          * Wahl der Zahl: Florian
          */
         private final float EFFORT = 2.8f;
+        private final float EFFORT_BALL = 2.8f;
+        private final float EFFORT_UNKOWN = 2.8f;
 
-        private final float EFFORT_REDUCTION = 0.2f;
+        private final float EFFORT_REDUCTION = 0.08f;
 
         /**
          * Comparator für PriorityQueue
@@ -528,12 +503,17 @@ public class playground extends PApplet{
         /**
          * Größe für lastFrameRobos. Entspricht LAST_ROBO_SIZE  Frames.
          */
-        private int LAST_ROBO_SIZE = 6;
+        private int LAST_ROBO_SIZE = 2;
 
         /**
          * Die letzten drei Roboter aus den letzten drei Frames.
          */
         private final RingBuffer<LastRobo> lastRobos;
+
+        /**
+         * Zählt, wie viele Frames der Roboter steht.
+         */
+        private int standingCounter;
 
         /**
          * Die letzen Wegpunkte, die nicht null sind.
@@ -543,7 +523,7 @@ public class playground extends PApplet{
         /**
          * Epsilon für das isStanding-Prädikat
          */
-        private final float EPS = 0.04f;
+        private final float EPS = 0.02f;
 
         MyRobot(Environment pEnvironment) {
             super(pEnvironment);
@@ -556,7 +536,12 @@ public class playground extends PApplet{
             fillMap();
             wayPoint = null;
             wayPoints = new ArrayDeque<>();
-            timer = 0;
+            time = 0;
+            startTime = 0;
+            endTime = 0;
+            frame = 0;
+            run = true;
+            pathQuad = null;
 
             sensors[0] = addSensor(-PI/6    , maxSensorRange);
             sensors[1] = addSensor(PI/6     , maxSensorRange);
@@ -624,7 +609,14 @@ public class playground extends PApplet{
         /**
          * Timer für Aktionen über Zeit
          */
-        private float timer;
+        private float time;
+        private float startTime;
+        private float endTime;
+        private int frame;
+        private Quad pathQuad;
+        private boolean run;
+
+
 
         public void update(float pDeltaTime) {
 
@@ -656,17 +648,25 @@ public class playground extends PApplet{
 
             for (Sensor sensor : sensors) {
                 if (sensor.triggered()) {
+                    //addObstacle(sensor.obstacle(), Sensor.WALL);//sensor.obstacleType());
+
+                    //addObstacle(sensor.obstacle(), sensor.obstacleType());
+
                     addObstacle(sensor.obstacle(), sensor.obstacleType() == Sensor.UNKNOWN ? Sensor.WALL :
                             sensor.obstacleType() == Sensor.BALL ? Sensor.BALL : Sensor.WALL);//sensor.obstacleType()); //TODO Walls in eigener Map sind nicht immer Walls…
-                    // TODO Läuft perfekt wenn diese so wäre
+                    // TODO Läuft perfekt wenn diese so wäre */
                 }
             }
 
-            Quad quad = aStar();
-            int maxWaxPoints = generatePath(quad);
+            Random random = new Random(System.currentTimeMillis());
+            if (frame%6 == 0) {
+                pathQuad = aStar();
+            }
+            //pathQuad darf null sein
+            int maxWaxPoints = generatePath(pathQuad);
             int delta = Math.round(MAX_WAY_POINT_ID /
                     (speed() < 0 ? maxBackwardSpeed : maxForwardSpeed) * speed());
-            int wayPointId = maxWaxPoints - delta;
+            int wayPointId = maxWaxPoints - delta - random.nextInt(5);
 
             float angleToGoal = 0;
             if (!wayPoints.isEmpty()) {
@@ -680,38 +680,39 @@ public class playground extends PApplet{
                 }
             }
 
-            println(timer);
-            println(status);
-            println(standing);
 
-            //TODO hier noch mal schraf nachdenken !!!
-            if (standing && timer <= 0) {
-                if (lastRobos.getFirst().getSpeed() <= 0) {
-                    status = FORWARD;
-                    timer = pDeltaTime * 18;
-                }
-                if (lastRobos.getFirst().getSpeed() > 0) {
+            run = startTime + endTime < time;
+            println(run);
+            println("Standing:" + standingCounter);
+            if (standingCounter >= 5 && run) {
+                println("### Reagiere!!!");
+                standing = true;
+                startTime = time;
+                endTime = 1.5f;
+                status = status < 1 ? FORWARD : BACKWARD;
+                steer(-steer());
+            }
+            if (run) {
+                if (angleToGoal < -PI/2) {
+                    println("hinten");
+                    startTime = time;
+                    endTime = 1.5f;
                     status = BACKWARD;
-                    timer = pDeltaTime * 18;
-                }
-                if (status == -1) {
-                    status = FORWARD;
-                    timer = pDeltaTime * 18;
-                }
-            } else if (timer <= 0) {
-                if (angleToGoal < -PI/2f) {
-                    timer = pDeltaTime * 18;
+                } else if (angleToGoal > PI/2) {
+                    println("hinten");
+                    startTime = time;
+                    endTime = 1.5f;
                     status = BACKWARD;
-
-                } else if (angleToGoal > PI / 2f) {
-                    timer = pDeltaTime * 18;
-                    status = BACKWARD;
-
                 } else {
+                    startTime = time;
+                    endTime = random(2.5f, 4.0f);
                     status = FORWARD;
-                    println("start");
                 }
             }
+            println("### startTime: " + startTime);
+            println("### time: " + time);
+            println("### endTime: " + endTime);
+            println("### timer: " + (endTime + startTime));
 
 
             Sensor sensor;
@@ -720,7 +721,7 @@ public class playground extends PApplet{
                     sensor = mostDisturbingFrontObstacle(sensors);
 
                     if (sensor != null) {
-                        speed(maxForwardSpeed * sensor.obstacleDistance() * 1.8f);
+                        speed(maxForwardSpeed * sensor.obstacleDistance() * 2.8f);
                     } else {
                         speed(maxForwardSpeed);
                     }
@@ -766,8 +767,8 @@ public class playground extends PApplet{
             lastRobos.push(new LastRobo(steer(), position(), speed()));
             //Update States
             updateStates();
-
-            timer -= pDeltaTime;
+            time += pDeltaTime; //Auf Overflow achten !!!
+            frame++;
 
         }
 
@@ -951,7 +952,7 @@ public class playground extends PApplet{
             switch (obstacleTyp) {
                 case Sensor.UNKNOWN:
 
-                    obstacle.setUnknown(RADIUS * EFFORT - obstacle.getWall() - obstacle.getBall());
+                    obstacle.setUnknown(RADIUS * EFFORT_UNKOWN - obstacle.getWall() - obstacle.getBall());
 
                     for (int i = WEST; i <= EAST; i++) {
                         for (int j = NORTH; j <= SOUTH; j++) {
@@ -959,7 +960,7 @@ public class playground extends PApplet{
                             Quad quad = map[i][j];
                             if (lenghtToObstacle <= RADIUS) {
 
-                                float newEffort = (RADIUS-lenghtToObstacle) * EFFORT - quad.getWall() - quad.getBall();
+                                float newEffort = (RADIUS-lenghtToObstacle) * EFFORT_UNKOWN - quad.getWall() - quad.getBall();
                                 float sumEffortOld = quad.getWall() + quad.getBall() + quad.getUnknown();
                                 if (newEffort > sumEffortOld) {
                                     quad.setUnknown(newEffort);
@@ -1003,7 +1004,7 @@ public class playground extends PApplet{
                     }
                     break;
                 case Sensor.BALL:
-                    obstacle.setBall(RADIUS * EFFORT - obstacle.getWall() - obstacle.getUnknown());
+                    obstacle.setBall(RADIUS * EFFORT_BALL - obstacle.getWall() - obstacle.getUnknown());
 
                     for (int i = WEST; i <= EAST; i++) {
                         for (int j = NORTH; j <= SOUTH; j++) {
@@ -1011,7 +1012,7 @@ public class playground extends PApplet{
                             Quad quad = map[i][j];
                             if (lenghtToObstacle <= RADIUS) {
 
-                                float newEffort = (RADIUS-lenghtToObstacle) * EFFORT - quad.getWall() - quad.getUnknown();
+                                float newEffort = (RADIUS-lenghtToObstacle) * EFFORT_BALL - quad.getWall() - quad.getUnknown();
                                 float sumEffortOld = quad.getWall() + quad.getBall() + quad.getUnknown();
                                 if (newEffort > sumEffortOld) {
                                     quad.setBall(newEffort);
@@ -1086,11 +1087,12 @@ public class playground extends PApplet{
          */
         private void updateStates() {
 
-            float middleVelocity = 0f;
+            float middleVelocity = 0;
             int countLeftDirection = 0;
             int countRightDirection = 0;
 
             //Hier werden alle letzten Roboter geprüft. Hängt von LAST_ROBO_SIZE ab.
+            /*
             Iterator<LastRobo> iter = lastRobos.iterator();
             LastRobo lastRobo = iter.hasNext() ? iter.next() : null;
             while (iter.hasNext() && lastRobo != null) {
@@ -1100,10 +1102,13 @@ public class playground extends PApplet{
 
                 lastRobo = newerRobo;
             }
-            middleVelocity /= lastRobos.size();
+            middleVelocity /= lastRobos.size(); */
 
             //Es sollen nur die ersten drei letzten Roboter gezählt werden.
-            iter = lastRobos.iterator();
+
+            middleVelocity = lastRobos.getLast().getPosition().sub(lastRobos.getFirst().getPosition()).length();
+
+            Iterator<LastRobo> iter = lastRobos.iterator();
             int count = 0;
             while (iter.hasNext() && count < 4) {
                 LastRobo robo = iter.next();
@@ -1116,10 +1121,10 @@ public class playground extends PApplet{
             }
 
             //Is Stending nach Statustest
-            if (-EPS < middleVelocity && middleVelocity < EPS && lastRobos.size() == LAST_ROBO_SIZE) {
-                standing = true;
+            if (middleVelocity < EPS && lastRobos.size() == LAST_ROBO_SIZE) {
+                standingCounter++;
             } else {
-                standing = false;
+                standingCounter = 0;
             }
 
 
@@ -1264,13 +1269,15 @@ public class playground extends PApplet{
                     break;
             }
 
-            if (!standing) {
+            if (standingCounter >= 5) {
                 if (status == FORWARD) {
                     triangle(2, 2, 0, 4, -2, 2);
                 } else if (status == BACKWARD) {
                     triangle(2, -2, 0, -4, -2, -2);
                 }
             }
+
+
 
             stroke(0);
             //draw a line pointing towards the goal
